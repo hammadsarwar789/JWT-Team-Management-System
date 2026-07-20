@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Sign In</h1>
+    <form id="signin-form">
+      <label>Email Address</label>
+      <input type="email" id="email" placeholder="email@example.com" required>
+
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Password" required>
+
+      <button type="submit" id="submit-btn">Sign In</button>
+    </form>
+
+    <p class="message" id="message"></p>
+
+    <div class="switch">
+      <a href="#" id="toggle-forgot">Forgot your password?</a>
+    </div>
+
+    <!-- Forgot Password Container -->
+    <div id="forgot-container" class="hidden" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155;">
+      <h2>Reset Password</h2>
+      <form id="forgot-form">
+        <label>Enter registered email</label>
+        <input type="email" id="forgot-email" placeholder="email@example.com" required>
+        <button type="submit" id="forgot-btn" class="secondary">Send Reset Token</button>
+      </form>
+      <p class="message" id="forgot-message"></p>
+
+      <!-- Token Confirm Step -->
+      <form id="reset-confirm-form" class="hidden" style="margin-top: 12px;">
+        <label>Reset Token</label>
+        <input type="text" id="reset-token" placeholder="Paste reset token here" required>
+        <label>New Password</label>
+        <input type="password" id="new-password" placeholder="New Password (min 6 chars)" required>
+        <button type="submit" id="reset-btn">Set New Password</button>
+      </form>
+    </div>
+
+    <p class="switch" style="margin-top: 18px;">Don't have an account? <a href="/signup">Sign up</a></p>
+  </div>
+
+  <script>
+    document.getElementById("toggle-forgot").addEventListener("click", (e) => {
+      e.preventDefault();
+      document.getElementById("forgot-container").classList.toggle("hidden");
+    });
+
+    document.getElementById("signin-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("message");
+      const btn = document.getElementById("submit-btn");
+      msg.textContent = "";
+      msg.className = "message";
+      btn.disabled = true;
+      btn.textContent = "Signing in...";
+
+      try {
+        const body = {
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+        };
+
+        const res = await fetch("/api/auth/signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem("token", data.access_token || data.token);
+          if (data.refresh_token) {
+            localStorage.setItem("refresh_token", data.refresh_token);
+          }
+          window.location.href = "/profile";
+        } else {
+          msg.textContent = data.error || "Something went wrong";
+        }
+      } catch (err) {
+        msg.textContent = "Connection error. Please ensure 'py run.py' is running.";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sign In";
+      }
+    });
+
+    document.getElementById("forgot-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("forgot-message");
+      msg.textContent = "Processing...";
+      msg.className = "message";
+
+      const email = document.getElementById("forgot-email").value;
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msg.className = "message success";
+        msg.textContent = data.message;
+        if (data.reset_token) {
+          document.getElementById("reset-token").value = data.reset_token;
+        }
+        document.getElementById("reset-confirm-form").classList.remove("hidden");
+      } else {
+        msg.textContent = data.error || "Failed to process request";
+      }
+    });
+
+    document.getElementById("reset-confirm-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("forgot-message");
+      msg.textContent = "Updating password...";
+      msg.className = "message";
+
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reset_token: document.getElementById("reset-token").value,
+          new_password: document.getElementById("new-password").value,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        msg.className = "message success";
+        msg.textContent = "Password updated! You can now sign in.";
+        document.getElementById("password").value = document.getElementById("new-password").value;
+      } else {
+        msg.textContent = data.error || "Reset failed";
+      }
+    });
+  </script>
+{% endblock %}
+
+
