@@ -9,10 +9,10 @@ class Config:
     # In production, ALWAYS load this from an environment variable / .env file
     SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-in-production")
 
-    # PostgreSQL Connection URL
+    # PostgreSQL Connection URL (Loaded from .env / DATABASE_URL)
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
-        "postgresql://postgres:Pakistan12@localhost:5432/Jwt_Login"
+        "postgresql://postgres:postgres@localhost:5432/jwt_auth_app"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
