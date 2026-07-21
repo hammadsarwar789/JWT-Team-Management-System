@@ -1,85 +1,104 @@
-# JWT Auth App (Flask + MongoDB)
+# JWT Auth App (Flask + PostgreSQL)
 
-Sign up, sign in, edit your profile, and add "fellows" (other people linked
-to your account) — with JWT-based authentication.
+Sign up, sign in, edit your profile, manage fellows (contacts linked to your account), track security audit logs, and manage roles — powered by **Flask**, **PostgreSQL** (Flask-SQLAlchemy), and **PyJWT**.
 
-## 1. Install MongoDB (if you don't have it)
+---
 
-- **WSL/Linux:** `sudo apt install -y mongodb` or use a free
-  [MongoDB Atlas](https://www.mongodb.com/atlas) cluster and paste its
-  connection string into `.env`.
-- Make sure `mongod` is running locally, or that your Atlas URI is reachable.
+## 1. Prerequisites (PostgreSQL Setup)
 
-## 2. Set up the project
+1. Make sure you have **PostgreSQL** installed and running on `localhost:5432`.
+2. Create the database `Jwt_Login` in PostgreSQL:
+   ```sql
+   CREATE DATABASE "Jwt_Login";
+   ```
+
+---
+
+## 2. Project Setup
 
 ```bash
+# Navigate to directory
 cd jwt_auth_app
-python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate        # Linux/macOS: source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
-cp .env.example .env
-# edit .env: set SECRET_KEY to a long random string, and MONGO_URI if needed
+
+# Configure environment variables (.env)
+```
+Ensure your `.env` file contains:
+```env
+SECRET_KEY=your-random-secret-key
+DATABASE_URL=postgresql://postgres:your_password@localhost:5432/Jwt_Login
 ```
 
-## 3. Run it
+---
+
+## 3. Run the Application
 
 ```bash
-python run.py
+py run.py
 ```
+*(All database tables will be automatically created on application startup).*
 
-Visit `http://localhost:5000` in your browser. You'll land on the sign-in
-page; use "Sign up" to create an account first.
+Visit `http://localhost:5000` in your browser.
 
-## 4. API reference (for testing with curl/Postman)
+---
 
-| Method | Endpoint             | Auth required | Body                                   |
-|--------|-----------------------|:---:|-----------------------------------------|
-| POST   | /api/auth/signup      | No  | `username, email, password`             |
-| POST   | /api/auth/signin      | No  | `email, password`                       |
-| GET    | /api/profile          | Yes | —                                       |
-| PUT    | /api/profile          | Yes | any of `username, full_name, bio`       |
-| POST   | /api/fellows          | Yes | `name, email?, relation?, notes?`       |
-| GET    | /api/fellows          | Yes | —                                       |
-| PUT    | /api/fellows/<id>     | Yes | any of `name, email, relation, notes`   |
-| DELETE | /api/fellows/<id>     | Yes | —                                       |
+## 4. Run Automated Unit Tests
 
-"Auth required" means sending header: `Authorization: Bearer <token>`
-(the token comes back from signup/signin).
-
-Example:
+Unit tests use `pytest` with an in-memory **SQLite** database, running fast and independently without requiring PostgreSQL:
 
 ```bash
-curl -X POST http://localhost:5000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"username":"hammad","email":"hammad@example.com","password":"secret123"}'
-
-curl http://localhost:5000/api/profile \
-  -H "Authorization: Bearer <token from signup response>"
+py -m pytest
 ```
 
-## Project structure
+---
+
+## 5. Key API Endpoints
+
+All protected endpoints require the HTTP header:
+`Authorization: Bearer <JWT_TOKEN>`
+
+| Method | Endpoint | Auth Required | Role Required | Description |
+|---|---|:---:|:---:|---|
+| POST | `/api/v1/auth/signup` | No | — | Register new user account |
+| POST | `/api/v1/auth/signin` | No | — | Authenticate user & receive JWT tokens |
+| POST | `/api/v1/auth/refresh` | No | — | Refresh access token |
+| GET | `/api/v1/profile` | Yes | — | Fetch profile information |
+| PUT | `/api/v1/profile` | Yes | — | Update profile fields |
+| POST | `/api/v1/profile/picture` | Yes | — | Upload profile avatar |
+| GET | `/api/v1/fellows` | Yes | — | List fellows (supports `q`, `page`, `limit`, `sort`, `order`) |
+| POST | `/api/v1/fellows` | Yes | — | Create new fellow contact |
+| PUT | `/api/v1/fellows/<id>` | Yes | — | Update fellow contact |
+| DELETE | `/api/v1/fellows/<id>` | Yes | — | Delete fellow contact |
+| GET | `/api/v1/dashboard/stats` | Yes | — | User dashboard metrics |
+| GET | `/api/v1/analytics/summary` | Yes | — | Contact relationship analytics |
+| PUT | `/api/v1/admin/users/<id>/role` | Yes | Admin | Update user role (`Admin`, `Manager`, `User`) |
+| GET | `/api/v1/admin/audit-logs` | Yes | Admin | View system audit logs |
+
+---
+
+## Project Structure
 
 ```
 jwt_auth_app/
-├── app.py              # Flask app factory, registers blueprints + page routes
-├── run.py               # entry point (loads .env, starts the server)
-├── config.py            # SECRET_KEY, MONGO_URI, token expiry
-├── extensions.py        # MongoDB client + collections
-├── auth/
-│   ├── routes.py         # POST /api/auth/signup, /api/auth/signin
-│   └── utils.py          # generate_token, decode_token, @token_required
-├── profiles/
-│   └── routes.py         # profile GET/PUT, fellows CRUD
-├── templates/            # signin.html, signup.html, profile.html
-└── static/style.css
+├── app.py                 # Flask App Factory (registers blueprints, db initialization)
+├── run.py                 # Server entry point (loads .env, starts Flask app)
+├── config.py              # Application configuration (DATABASE_URL, JWT_EXPIRES)
+├── extensions.py          # SQLAlchemy db instance & helper methods
+├── models/                # Database ORM models
+│   ├── user.py            # User model & roles
+│   ├── fellow.py          # Fellow (contacts) model
+│   └── audit_log.py       # Security & system audit log model
+├── services/              # Business logic layer
+├── middleware/            # JWT authentication & security headers
+├── auth/                  # Authentication routes & JWT utilities
+├── profiles/              # Profile, Fellows, Admin & Analytics routes
+├── templates/             # HTML templates (signin, signup, profile)
+├── static/                # Static CSS/JS assets
+└── tests/                 # Comprehensive pytest test suite
 ```
-
-## Security notes before deploying this for real
-
-- Never commit `.env` or a real `SECRET_KEY` to version control.
-- This demo stores the JWT in `localStorage`, which is simplest for
-  learning but vulnerable to XSS. For production, prefer an httpOnly
-  cookie.
-- Add rate limiting to `/signin` to slow down brute-force guessing.
-- Consider short-lived access tokens + a refresh token if you want
-  users to stay signed in for a long time without one long-lived token.

@@ -6,26 +6,31 @@ Welcome! This document provides a comprehensive technical overview of the **JWT 
 
 ## 1. High-Level Architecture Overview
 
-The application is a lightweight, scalable web API and single-page web app built with **Flask**, **MongoDB** (PyMongo), and **PyJWT**.
+The application is a lightweight, scalable web API and single-page web app built with **Flask**, **PostgreSQL** (Flask-SQLAlchemy), and **PyJWT**.
 
 ```
 jwt_auth_app/
 ├── app.py                 # Flask App Factory (registers blueprints, global error handlers)
 ├── run.py                 # Application entry point (loads .env, starts server)
-├── config.py              # Environment configuration (SECRET_KEY, MONGO_URI, JWT_EXPIRES)
-├── extensions.py          # Database connection manager & CollectionProxy wrappers
+├── config.py              # Environment configuration (SECRET_KEY, DATABASE_URL, JWT_EXPIRES)
+├── extensions.py          # Flask-SQLAlchemy db object & init_db helper
 ├── auth/                  # Authentication module
-│   ├── routes.py          # Signup & Signin API endpoints
+│   ├── routes.py          # Signup, Signin, Refresh & Password reset endpoints
 │   └── utils.py           # JWT token generation, decoding, @token_required decorator
-├── profiles/              # User profile & Fellows management module
-│   └── routes.py          # Profile GET/PUT & Fellows CRUD endpoints
+├── profiles/              # User profile, Fellows, Dashboard & Admin module
+│   └── routes.py          # Profile GET/PUT, Fellows CRUD, Analytics & Role management
+├── models/                # SQLAlchemy ORM Models
+│   ├── user.py            # User model (roles: Admin, Manager, User)
+│   ├── fellow.py          # Fellow model (owner_id ForeignKey to users.id)
+│   └── audit_log.py       # AuditLog model for security tracking
+├── services/              # Modularized Business Logic Layer
 ├── templates/             # HTML templates (base.html, signin.html, signup.html, profile.html)
 ├── static/                # Static assets (style.css)
-├── tests/                 # Unit test suite (pytest + mongomock)
-│   ├── conftest.py        # Pytest fixtures & in-memory MongoDB setup
+├── tests/                 # Unit test suite (pytest + in-memory SQLite)
+│   ├── conftest.py        # Pytest fixtures & isolated SQLite database setup
 │   ├── test_auth.py       # Authentication unit tests
 │   ├── test_profile.py    # Profile & Fellows unit tests
-│   └── test_utils.py      # JWT utility tests
+│   └── ...                # Phase 2-5 enhancement tests
 └── requirements.txt       # Python dependencies
 ```
 
@@ -34,46 +39,51 @@ jwt_auth_app/
 ## 2. Key Architecture Patterns & Database Strategy
 
 ### Application Factory (`app.py`)
-The app uses Flask's standard `create_app()` factory function. Blueprints (`auth_bp`, `profile_bp`) and global exception handlers are registered inside `create_app()`.
+The app uses Flask's standard `create_app()` factory function. Blueprints (`auth_bp`, `profile_bp`), database initialization (`init_db(app)`), security headers, and global exception handlers (`SQLAlchemyError`) are registered inside `create_app()`.
 
-### Decoupled Database Layer & `CollectionProxy` (`extensions.py`)
-To prevent top-level module import side-effects and allow isolated unit testing without a live MongoDB connection:
-- `extensions.py` utilizes a `CollectionProxy` pattern that dynamically forwards PyMongo collection methods (`find_one`, `insert_one`, etc.) to `get_db()`.
-- Database connections are initialized **lazily** upon first query request.
-- Unit tests intercept the active database by calling `set_db(mongomock_database)`, enabling 100% in-memory testing.
-- A global `PyMongoError` handler in `app.py` catches database connection timeouts/failures and returns clean HTTP 503 responses.
+### Relational Database Layer (`Flask-SQLAlchemy`)
+- All database entities (`User`, `Fellow`, `AuditLog`) are defined as SQL ORM models inheriting from `extensions.db.Model`.
+- Database connections and tables are managed via `Flask-SQLAlchemy`.
+- Foreign key constraints ensure data integrity (`Fellow.owner_id` -> `User.id` with `ondelete="CASCADE"`).
+- Automated unit tests (`pytest`) use an in-memory SQLite database (`sqlite:///:memory:`), enabling 100% fast and isolated testing.
 
 ---
 
-## 3. Data Schemas & Database Collections
+## 3. Data Schemas & SQL Models
 
-### `users` Collection
-Stores user account profiles and hashed credentials.
-```json
-{
-  "_id": "ObjectId('6789abcdef0123456789abcd')",
-  "username": "string (required)",
-  "email": "string (required, unique index, lowercase)",
-  "password": "string (hashed via werkzeug.security)",
-  "full_name": "string (optional)",
-  "bio": "string (optional)",
-  "created_at": "datetime (timezone-aware UTC)"
-}
-```
+### `users` Table
+Stores user account profiles, hashed credentials, and verification state.
+- `id`: Integer (Primary Key, Autoincrement)
+- `username`: String(80) (Required)
+- `email`: String(120) (Required, Unique, Indexed)
+- `password`: String(255) (Hashed via Werkzeug scrypt/pbkdf2)
+- `full_name`: String(120)
+- `bio`: Text
+- `role`: String(20) (`Admin`, `Manager`, `User`)
+- `is_verified`: Boolean
+- `profile_picture`: String(255)
+- `created_at`: DateTime (Timezone-aware UTC)
 
-### `fellows` Collection
-Stores people/contacts linked to a specific user account.
-```json
-{
-  "_id": "ObjectId('abcdef0123456789abcdef01')",
-  "owner_id": "ObjectId('6789abcdef0123456789abcd')",
-  "name": "string (required)",
-  "email": "string (optional)",
-  "relation": "string (optional)",
-  "notes": "string (optional)",
-  "created_at": "datetime (timezone-aware UTC)"
-}
-```
+### `fellows` Table
+Stores contacts linked to a user account.
+- `id`: Integer (Primary Key, Autoincrement)
+- `owner_id`: Integer (ForeignKey to `users.id`, Indexed)
+- `name`: String(120) (Required)
+- `email`: String(120)
+- `relation`: String(100)
+- `notes`: Text
+- `attachments`: JSON (List of attachment dicts)
+- `created_at`: DateTime (Timezone-aware UTC)
+
+### `audit_logs` Table
+Tracks security and administrative events.
+- `id`: Integer (Primary Key, Autoincrement)
+- `user_id`: String(80)
+- `username`: String(120)
+- `action`: String(100)
+- `details`: JSON
+- `ip_address`: String(45)
+- `created_at`: DateTime (Timezone-aware UTC, Indexed)
 
 ---
 
@@ -82,25 +92,28 @@ Stores people/contacts linked to a specific user account.
 All protected endpoints require the HTTP header:
 `Authorization: Bearer <JWT_TOKEN>`
 
-| Endpoint | Method | Auth Required | Description & Request Body | Response Codes |
-|---|---|:---:|---|---|
-| `/api/auth/signup` | POST | No | Register new user. Body: `{ username, email, password, full_name?, bio? }` | `201 Created`, `400 Bad Request`, `409 Conflict` |
-| `/api/auth/signin` | POST | No | Authenticate user. Body: `{ email, password }` | `200 OK`, `401 Unauthorized` |
-| `/api/profile` | GET | Yes | Fetch authenticated user profile. | `200 OK`, `401 Unauthorized`, `404 Not Found` |
-| `/api/profile` | PUT | Yes | Update user profile. Body: any of `{ username, full_name, bio }` | `200 OK`, `400 Bad Request`, `401 Unauthorized` |
-| `/api/fellows` | POST | Yes | Add a fellow linked to signed-in user. Body: `{ name, email?, relation?, notes? }` | `201 Created`, `400 Bad Request`, `401 Unauthorized` |
-| `/api/fellows` | GET | Yes | List all fellows owned by signed-in user. | `200 OK`, `401 Unauthorized` |
-| `/api/fellows/<id>` | PUT | Yes | Update a fellow by ID. Body: any of `{ name, email, relation, notes }` | `200 OK`, `400 Bad Request`, `404 Not Found` |
-| `/api/fellows/<id>` | DELETE | Yes | Delete a fellow by ID. | `200 OK`, `400 Bad Request`, `404 Not Found` |
+| Endpoint | Method | Auth Required | Description & Request Body |
+|---|---|:---:|---|
+| `/api/v1/auth/signup` | POST | No | Register new user. Body: `{ username, email, password, full_name?, bio? }` |
+| `/api/v1/auth/signin` | POST | No | Authenticate user. Body: `{ email, password }` |
+| `/api/v1/auth/refresh` | POST | No | Refresh access token using `{ refresh_token }` |
+| `/api/v1/profile` | GET | Yes | Fetch authenticated user profile |
+| `/api/v1/profile` | PUT | Yes | Update user profile. Body: any of `{ username, full_name, bio }` |
+| `/api/v1/fellows` | GET | Yes | List fellows (supports `q`, `page`, `limit`, `sort`, `order`, `all`) |
+| `/api/v1/fellows` | POST | Yes | Add a fellow. Body: `{ name, email?, relation?, notes? }` |
+| `/api/v1/fellows/<id>` | PUT | Yes | Update a fellow by ID |
+| `/api/v1/fellows/<id>` | DELETE | Yes | Delete a fellow by ID |
+| `/api/v1/admin/users/<id>/role` | PUT | Yes (Admin) | Update user role: `{ "role": "Admin" | "Manager" | "User" }` |
+| `/api/v1/admin/audit-logs` | GET | Yes (Admin) | Retrieve audit logs |
 
 ---
 
 ## 5. Security & Validation Rules
 
 1. **Passwords:** Stored securely using Werkzeug scrypt/pbkdf2 hashing (`generate_password_hash` / `check_password_hash`). Passwords must be at least 6 characters.
-2. **JWT Tokens:** Encoded/decoded using `PyJWT` with `HS256` algorithm. Expiry is set via `JWT_EXPIRES` (default: 24 hours).
-3. **ObjectId Safety:** All string-to-ObjectId conversions are wrapped with `try...except InvalidId` (via `parse_oid`) to prevent HTTP 500 server crashes on malformed IDs.
-4. **Timezones:** All timestamp calculations use timezone-aware Python 3.12+ `datetime.datetime.now(datetime.timezone.utc)`.
+2. **JWT Tokens:** Dual-token authentication: 30-minute Access Tokens + 7-day Refresh Tokens, signed with `HS256`.
+3. **Timezones:** All timestamp calculations use timezone-aware Python `datetime.datetime.now(datetime.timezone.utc)`.
+4. **Security Headers:** Defensive HTTP headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`) automatically injected.
 
 ---
 
@@ -110,26 +123,15 @@ All protected endpoints require the HTTP header:
 Ensure `.env` contains:
 ```env
 SECRET_KEY=your-random-secret-key
-MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/jwt_auth_app?appName=Cluster
+DATABASE_URL=postgresql://postgres:your_password@localhost:5432/Jwt_Login
 ```
 
-### Running the Application Server
+### Running the Server
 ```powershell
 py run.py
 ```
-Access the UI at `http://localhost:5000/`.
 
 ### Running Automated Unit Tests
-Unit tests use `pytest` and `mongomock` (in-memory MongoDB simulation):
 ```powershell
 py -m pytest
 ```
-
----
-
-## 7. Guidelines for AI Agents Modifying This Codebase
-
-- **Database Access:** Always access collections via `users_collection` and `fellows_collection` imported from `extensions.py`. Do NOT instantiate `MongoClient()` directly in route handlers or module roots.
-- **ObjectId Conversion:** Always use `parse_oid(id_string)` or wrap `ObjectId()` calls in `try...except InvalidId` to maintain API safety contract.
-- **Timestamps:** Always use `datetime.datetime.now(datetime.timezone.utc)` for dates and JWT payloads. Do NOT use deprecated `datetime.utcnow()`.
-- **Test Integrity:** Ensure all 15 unit tests pass (`py -m pytest`) after making modifications.
