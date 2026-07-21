@@ -1,44 +1,45 @@
 import datetime
-from bson import ObjectId
-from extensions import audit_logs_collection, users_collection
+from sqlalchemy import desc
+from extensions import db
+from models.audit_log import AuditLog
+from models.user import User
 
 
 def log_event(user_id, action, details=None, ip_address=None):
-    """Record a system audit event in MongoDB."""
-    user_oid = None
+    """Record a system audit event in SQL database."""
     username = "Anonymous / System"
 
     if user_id:
         try:
-            user_oid = ObjectId(str(user_id))
-            user_doc = users_collection.find_one({"_id": user_oid})
-            if user_doc:
-                username = user_doc.get("username", "Unknown")
-        except Exception:
-            user_oid = str(user_id)
+            user_id_int = int(user_id)
+            user_obj = db.session.get(User, user_id_int)
+            if user_obj:
+                username = user_obj.username
+        except (ValueError, TypeError):
+            pass
 
-    event_doc = {
-        "user_id": str(user_id) if user_id else None,
-        "username": username,
-        "action": action,
-        "details": details or {},
-        "ip_address": ip_address,
-        "created_at": datetime.datetime.now(datetime.timezone.utc),
-    }
+    log_entry = AuditLog(
+        user_id=str(user_id) if user_id else None,
+        username=username,
+        action=action,
+        details=details or {},
+        ip_address=ip_address,
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
 
-    audit_logs_collection.insert_one(event_doc)
-    return event_doc
+    db.session.add(log_entry)
+    db.session.commit()
+    return log_entry.to_dict()
 
 
 def get_audit_logs(query_params=None):
     """Retrieve audit logs with optional filtering and pagination (Admin only)."""
     query_params = query_params or {}
-
-    filter_query = {}
+    query = AuditLog.query
 
     action_filter = str(query_params.get("action", "")).strip()
     if action_filter:
-        filter_query["action"] = {"$regex": action_filter, "$options": "i"}
+        query = query.filter(AuditLog.action.ilike(f"%{action_filter}%"))
 
     try:
         page = max(1, int(query_params.get("page", 1)))
@@ -50,23 +51,12 @@ def get_audit_logs(query_params=None):
     except (ValueError, TypeError):
         limit = 20
 
-    skip = (page - 1) * limit
-    total_count = audit_logs_collection.count_documents(filter_query)
+    offset = (page - 1) * limit
+    total_count = query.count()
     total_pages = max(1, (total_count + limit - 1) // limit) if total_count > 0 else 1
 
-    cursor = audit_logs_collection.find(filter_query).sort("created_at", -1).skip(skip).limit(limit)
-
-    items = []
-    for log in cursor:
-        items.append({
-            "id": str(log["_id"]),
-            "user_id": log.get("user_id"),
-            "username": log.get("username", "System"),
-            "action": log.get("action"),
-            "details": log.get("details", {}),
-            "ip_address": log.get("ip_address"),
-            "created_at": log["created_at"].isoformat() if isinstance(log.get("created_at"), datetime.datetime) else str(log.get("created_at")),
-        })
+    logs_list = query.order_by(desc(AuditLog.created_at)).offset(offset).limit(limit).all()
+    items = [log.to_dict() for log in logs_list]
 
     return {
         "items": items,

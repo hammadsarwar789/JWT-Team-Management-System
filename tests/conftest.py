@@ -1,32 +1,33 @@
 import pytest
-import mongomock
-
 from app import create_app
-from extensions import set_db, init_indexes
+from extensions import db as _db
 
 
 @pytest.fixture
-def mock_db():
-    """Create an in-memory mongomock database and override extensions.db."""
-    client = mongomock.MongoClient()
-    db = client["test_jwt_auth_db"]
-    set_db(db)
-    init_indexes()
-    yield db
-    # Reset after test
-    set_db(None)
+def app():
+    """Flask application instance initialized with in-memory SQLite database."""
+    test_config = {
+        "TESTING": True,
+        "SECRET_KEY": "test-secret-key-12345",
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+    }
+    app = create_app(test_config=test_config)
 
-
-@pytest.fixture
-def app(mock_db):
-    """Flask application instance initialized with mock_db."""
-    app = create_app()
-    app.config["TESTING"] = True
-    app.config["SECRET_KEY"] = "test-secret-key-12345"
-    return app
+    with app.app_context():
+        _db.create_all()
+        yield app
+        _db.session.remove()
+        _db.drop_all()
 
 
 @pytest.fixture
 def client(app):
     """Flask test client."""
     return app.test_client()
+
+
+@pytest.fixture
+def db_session(app):
+    """Provides access to db session during testing."""
+    with app.app_context():
+        yield _db.session

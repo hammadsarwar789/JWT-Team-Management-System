@@ -1,11 +1,8 @@
 import io
-from extensions import users_collection
-from models.user import UserRole
 
 
-def test_export_import_fellows(client, mock_db):
+def test_export_import_fellows(client):
     """Test CSV & JSON export and import endpoints."""
-    # Signup user
     res_signup = client.post("/api/v1/auth/signup", json={
         "username": "expuser",
         "email": "expuser@example.com",
@@ -14,11 +11,10 @@ def test_export_import_fellows(client, mock_db):
     token = res_signup.get_json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Add 2 fellows
     client.post("/api/v1/fellows", json={"name": "Exporter One", "email": "one@example.com", "relation": "Friend"}, headers=headers)
     client.post("/api/v1/fellows", json={"name": "Exporter Two", "email": "two@gmail.com", "relation": "Colleague"}, headers=headers)
 
-    # 1. Export CSV
+    # Export CSV
     res_csv = client.get("/api/v1/fellows/export?format=csv", headers=headers)
     assert res_csv.status_code == 200
     assert "text/csv" in res_csv.mimetype
@@ -26,12 +22,12 @@ def test_export_import_fellows(client, mock_db):
     assert "Exporter One" in csv_text
     assert "Exporter Two" in csv_text
 
-    # 2. Export JSON
+    # Export JSON
     res_json = client.get("/api/v1/fellows/export?format=json", headers=headers)
     assert res_json.status_code == 200
     assert "application/json" in res_json.mimetype
 
-    # 3. Import CSV into a new user
+    # Import CSV into a new user
     res_new_user = client.post("/api/v1/auth/signup", json={
         "username": "impuser",
         "email": "impuser@example.com",
@@ -54,12 +50,11 @@ def test_export_import_fellows(client, mock_db):
     assert res_import.status_code == 200
     assert res_import.get_json()["count"] == 1
 
-    # Verify imported fellow exists
     res_list = client.get("/api/v1/fellows", headers=headers2)
     assert res_list.get_json()["total"] == 1
 
 
-def test_contact_file_attachment(client, mock_db):
+def test_contact_file_attachment(client):
     """Test attaching a document file to a fellow contact."""
     res_signup = client.post("/api/v1/auth/signup", json={
         "username": "attachuser",
@@ -86,13 +81,11 @@ def test_contact_file_attachment(client, mock_db):
     assert len(fellow["attachments"]) == 1
     assert fellow["attachments"][0]["filename"] == "resume.pdf"
 
-    # Delete attachment
     res_del_att = client.delete(f"/api/v1/fellows/{fellow_id}/attachments/resume.pdf", headers=headers)
     assert res_del_att.status_code == 200
 
 
-
-def test_analytics_summary_endpoint(client, mock_db):
+def test_analytics_summary_endpoint(client):
     """Test GET /api/v1/analytics/summary endpoint."""
     res_signup = client.post("/api/v1/auth/signup", json={
         "username": "analyticsuser",

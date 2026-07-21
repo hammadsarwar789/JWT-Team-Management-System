@@ -1,10 +1,9 @@
 import datetime
 from werkzeug.security import generate_password_hash
-from bson import ObjectId
-from bson.errors import InvalidId
 
-from extensions import users_collection
+from extensions import db
 from auth.utils import generate_token, decode_token
+from models.user import User
 
 
 def request_password_reset(email):
@@ -12,14 +11,14 @@ def request_password_reset(email):
     if not email:
         return False, "Email is required", None, 400
 
-    user = users_collection.find_one({"email": email.strip().lower()})
+    user = User.query.filter_by(email=email.strip().lower()).first()
     if not user:
         # Avoid user enumeration by returning general success message
         return True, "If an account with that email exists, a password reset token has been created.", None, 200
 
     # Create 1-hour reset token
     reset_token = generate_token(
-        user["_id"],
+        user.id,
         token_type="reset",
         expires_delta=datetime.timedelta(hours=1)
     )
@@ -41,18 +40,16 @@ def confirm_password_reset(reset_token, new_password):
 
     user_id = payload.get("sub")
     try:
-        user_oid = ObjectId(user_id)
-    except (InvalidId, TypeError):
+        user_id_int = int(user_id)
+    except (ValueError, TypeError):
         return False, "Invalid user id", 400
 
-    user = users_collection.find_one({"_id": user_oid})
+    user = db.session.get(User, user_id_int)
     if not user:
         return False, "User not found", 404
 
-    users_collection.update_one(
-        {"_id": user_oid},
-        {"$set": {"password": generate_password_hash(new_password)}}
-    )
+    user.password = generate_password_hash(new_password)
+    db.session.commit()
 
     return True, "Password updated successfully", 200
 
@@ -80,16 +77,15 @@ def verify_user_email(verification_token):
 
     user_id = payload.get("sub")
     try:
-        user_oid = ObjectId(user_id)
-    except (InvalidId, TypeError):
+        user_id_int = int(user_id)
+    except (ValueError, TypeError):
         return False, "Invalid user id", 400
 
-    result = users_collection.update_one(
-        {"_id": user_oid},
-        {"$set": {"is_verified": True}}
-    )
-    if result.matched_count == 0:
+    user = db.session.get(User, user_id_int)
+    if not user:
         return False, "User not found", 404
 
-    return True, "Email verified successfully", 200
+    user.is_verified = True
+    db.session.commit()
 
+    return True, "Email verified successfully", 200

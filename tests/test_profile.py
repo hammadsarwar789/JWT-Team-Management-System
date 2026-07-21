@@ -1,4 +1,5 @@
-from bson import ObjectId
+from extensions import db
+from models.user import User, UserRole
 from auth.utils import generate_token
 
 
@@ -109,7 +110,6 @@ def test_fellows_crud(client):
     assert len(fellows_list2) == 0
 
 
-
 def test_fellows_invalid_id(client):
     token = signup_and_get_token(client, "fellows_invalid@example.com")
     headers = {"Authorization": f"Bearer {token}"}
@@ -119,15 +119,11 @@ def test_fellows_invalid_id(client):
     assert res_edit.status_code == 400
 
     # Non-existent fellow id
-    random_oid = str(ObjectId())
-    res_del = client.delete(f"/api/fellows/{random_oid}", headers=headers)
+    res_del = client.delete("/api/fellows/999999", headers=headers)
     assert res_del.status_code == 404
 
 
-def test_change_user_role_admin(client, mock_db):
-    from extensions import users_collection
-    from models.user import UserRole
-
+def test_change_user_role_admin(app, client):
     # User 1 (Target user)
     token_target = signup_and_get_token(client, "target_user@example.com")
     res_prof = client.get("/api/profile", headers={"Authorization": f"Bearer {token_target}"})
@@ -135,7 +131,10 @@ def test_change_user_role_admin(client, mock_db):
 
     # User 2 (Admin user)
     token_admin = signup_and_get_token(client, "admin_user@example.com")
-    users_collection.update_one({"email": "admin_user@example.com"}, {"$set": {"role": UserRole.ADMIN}})
+    with app.app_context():
+        admin_user = User.query.filter_by(email="admin_user@example.com").first()
+        admin_user.role = UserRole.ADMIN
+        db.session.commit()
 
     # Non-admin attempt -> 403
     res_unauth = client.put(f"/api/admin/users/{target_id}/role", json={"role": UserRole.MANAGER}, headers={"Authorization": f"Bearer {token_target}"})
@@ -145,4 +144,3 @@ def test_change_user_role_admin(client, mock_db):
     res_admin = client.put(f"/api/admin/users/{target_id}/role", json={"role": UserRole.MANAGER}, headers={"Authorization": f"Bearer {token_admin}"})
     assert res_admin.status_code == 200
     assert res_admin.get_json()["user"]["role"] == UserRole.MANAGER
-

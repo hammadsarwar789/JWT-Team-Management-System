@@ -1,17 +1,15 @@
 from functools import wraps
 from flask import request, jsonify
-from bson import ObjectId
-from bson.errors import InvalidId
 
+from extensions import db
 from auth.utils import decode_token
-from extensions import users_collection
-from models.user import UserRole
+from models.user import User, UserRole
 
 
 def parse_oid(id_str):
     try:
-        return ObjectId(id_str)
-    except (InvalidId, TypeError):
+        return int(id_str)
+    except (ValueError, TypeError):
         return None
 
 
@@ -35,19 +33,18 @@ def token_required(f):
         if payload is None:
             return jsonify({"error": "Token is invalid or expired"}), 401
 
-
         user_id = payload.get("sub")
-        user_oid = parse_oid(user_id)
-        if not user_oid:
+        user_id_int = parse_oid(user_id)
+        if user_id_int is None:
             return jsonify({"error": "Invalid user id"}), 400
 
-        user = users_collection.find_one({"_id": user_oid})
+        user = db.session.get(User, user_id_int)
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        request.user_id = str(user["_id"])
-        request.user_oid = user_oid
-        request.user_role = user.get("role", UserRole.USER)
+        request.user_id = str(user.id)
+        request.user_oid = user.id
+        request.user_role = user.role or UserRole.USER
         request.current_user = user
 
         return f(*args, **kwargs)
