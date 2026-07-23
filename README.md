@@ -98,6 +98,7 @@ All protected endpoints require `Authorization: Bearer <JWT_TOKEN>` header (or H
 | GET | `/api/v1/admin/audit-logs` | Yes | Admin | View security audit logs (Redis cached) |
 
 ---
+
 ## 📂 Project Structure
 
 ```
