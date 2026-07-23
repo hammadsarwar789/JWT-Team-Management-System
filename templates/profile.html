@@ -24,7 +24,8 @@
 
   <section class="card">
     <div class="avatar-section">
-      <img id="avatar-preview" class="avatar-img" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar">
+      <img id="avatar-preview" class="avatar-img" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=User&background=0284c7&color=fff';">
+
       <div>
         <div class="badge-group">
           <span id="role-display" class="badge badge-user">User</span>
@@ -298,9 +299,10 @@
 
       // Avatar
       if (user.profile_picture) {
-        document.getElementById("avatar-preview").src = user.profile_picture;
+        const picUrl = user.profile_picture.includes("?") ? user.profile_picture : user.profile_picture + "?t=" + Date.now();
+        document.getElementById("avatar-preview").src = picUrl;
       } else {
-        document.getElementById("avatar-preview").src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=0284c7&color=fff`;
+        document.getElementById("avatar-preview").src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || "User")}&background=0284c7&color=fff`;
       }
     }
 

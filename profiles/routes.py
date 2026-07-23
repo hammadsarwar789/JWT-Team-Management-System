@@ -98,9 +98,13 @@ def change_user_role(user_id):
     return jsonify({"message": msg, "user": user_data}), status_code
 
 
+from services.cache_service import cache_endpoint, cache_delete_pattern
+
+
 @profile_bp.route("/admin/audit-logs", methods=["GET"])
 @token_required
 @role_required(UserRole.ADMIN)
+@cache_endpoint(ttl=300, key_prefix="audit_logs")
 def get_audit_logs():
     result = audit_service.get_audit_logs(request.args)
     return jsonify(result), 200
@@ -115,6 +119,7 @@ import services.dashboard_service as dashboard_service
 
 @profile_bp.route("/dashboard/stats", methods=["GET"])
 @token_required
+@cache_endpoint(ttl=300, key_prefix="dashboard")
 def get_dashboard():
     user_oid = getattr(request, "user_oid", None) or parse_oid(request.user_id)
     if not user_oid:
@@ -142,11 +147,13 @@ def add_fellow():
         return jsonify({"error": error_msg}), 400
 
     fellow = fellow_service.create_fellow(user_oid, cleaned_data)
+    cache_delete_pattern(f"cache:*:{request.user_id}:*")
     return jsonify(fellow), 201
 
 
 @profile_bp.route("/fellows", methods=["GET"])
 @token_required
+@cache_endpoint(ttl=300, key_prefix="fellows")
 def list_fellows():
     user_oid = getattr(request, "user_oid", None) or parse_oid(request.user_id)
     if not user_oid:
@@ -176,6 +183,7 @@ def edit_fellow(fellow_id):
     if not success:
         return jsonify({"error": msg}), status_code
 
+    cache_delete_pattern(f"cache:*:{request.user_id}:*")
     return jsonify(fellow), status_code
 
 
@@ -195,8 +203,9 @@ def delete_fellow(fellow_id):
     if not success:
         return jsonify({"error": msg}), status_code
 
-
+    cache_delete_pattern(f"cache:*:{request.user_id}:*")
     return jsonify({"message": msg}), status_code
+
 
 
 from flask import Response, current_app

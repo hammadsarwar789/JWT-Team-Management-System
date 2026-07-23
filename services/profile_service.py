@@ -14,7 +14,8 @@ def upload_profile_picture(user_id, file_obj, app_root_path):
     upload_dir = os.path.join(app_root_path, "uploads", "profile_images")
     os.makedirs(upload_dir, exist_ok=True)
 
-    filename = f"{str(user_id)}{ext}"
+    import uuid
+    filename = f"{str(user_id)}_{uuid.uuid4().hex[:8]}{ext}"
     file_path = os.path.join(upload_dir, filename)
     file_obj.save(file_path)
 
@@ -23,6 +24,16 @@ def upload_profile_picture(user_id, file_obj, app_root_path):
     user = db.session.get(User, user_id)
     if not user:
         return False, "User not found", None, 404
+
+    # Remove old profile picture file if exists
+    if user.profile_picture and user.profile_picture.startswith("/uploads/profile_images/"):
+        old_filename = user.profile_picture.split("/")[-1]
+        old_file_path = os.path.join(upload_dir, old_filename)
+        if os.path.exists(old_file_path) and old_file_path != file_path:
+            try:
+                os.remove(old_file_path)
+            except Exception:
+                pass
 
     user.profile_picture = relative_url
     db.session.commit()

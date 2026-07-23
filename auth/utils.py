@@ -1,8 +1,10 @@
 import datetime
+import uuid
 from functools import wraps
 
 import jwt
 from flask import request, jsonify, current_app
+from services.token_blacklist_service import is_token_blacklisted
 
 
 def generate_token(user_id, token_type="access", expires_delta=None):
@@ -15,6 +17,7 @@ def generate_token(user_id, token_type="access", expires_delta=None):
             expires_delta = current_app.config.get("JWT_ACCESS_EXPIRES", datetime.timedelta(minutes=30))
 
     payload = {
+        "jti": str(uuid.uuid4()),
         "sub": str(user_id),
         "type": token_type,
         "iat": now,
@@ -35,7 +38,7 @@ def generate_tokens_pair(user_id):
 
 
 def decode_token(token, expected_type=None):
-    """Return payload if valid, or None if expired/tampered/invalid/wrong type."""
+    """Return payload if valid, or None if expired/tampered/invalid/wrong type/blacklisted."""
     try:
         payload = jwt.decode(
             token,
@@ -46,9 +49,13 @@ def decode_token(token, expected_type=None):
             # If payload type is set and doesn't match expected_type, return None
             if "type" in payload:
                 return None
+        jti = payload.get("jti")
+        if jti and is_token_blacklisted(jti):
+            return None
         return payload
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return None
+
 
 
 from middleware.auth import token_required  # noqa: F401

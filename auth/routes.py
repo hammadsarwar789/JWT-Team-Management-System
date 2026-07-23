@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response, current_app
 
 from validators.auth_validator import validate_signup_payload, validate_signin_payload
 from services.auth_service import register_user, authenticate_user, refresh_access_token
@@ -8,9 +8,29 @@ from services.password_reset_service import (
     verify_user_email,
 )
 from services.audit_service import log_event
+from services.token_blacklist_service import blacklist_token
+from middleware.auth import token_required
 
 auth_bp = Blueprint("auth", __name__)
 
+
+def _set_refresh_cookie(response, refresh_token):
+    """Set HTTP-only refresh_token cookie on Flask response object."""
+    if not refresh_token:
+        return response
+    cookie_secure = current_app.config.get("JWT_COOKIE_SECURE", False)
+    cookie_httponly = current_app.config.get("JWT_COOKIE_HTTPONLY", True)
+    cookie_samesite = current_app.config.get("JWT_COOKIE_SAMESITE", "Lax")
+    response.set_cookie(
+        "refresh_token",
+        value=refresh_token,
+        httponly=cookie_httponly,
+        secure=cookie_secure,
+        samesite=cookie_samesite,
+        max_age=7 * 24 * 3600,  # 7 days
+        path="/",
+    )
+    return response
 
 
 @auth_bp.route("/signup", methods=["POST"])
@@ -25,16 +45,20 @@ def signup():
         log_event(None, "SIGNUP_FAILED", {"email": cleaned_data.get("email"), "reason": msg}, request.remote_addr)
         return jsonify({"error": msg}), status_code
 
-    user_id = tokens.get("access_token") if isinstance(tokens, dict) else None
     log_event(cleaned_data["email"], "USER_REGISTERED", {"username": cleaned_data["username"]}, request.remote_addr)
 
     response_data = {"message": msg}
+    refresh_token = None
     if isinstance(tokens, dict):
         response_data.update(tokens)
+        refresh_token = tokens.get("refresh_token")
     else:
         response_data["token"] = tokens
 
-    return jsonify(response_data), status_code
+    resp = make_response(jsonify(response_data), status_code)
+    if refresh_token:
+        _set_refresh_cookie(resp, refresh_token)
+    return resp
 
 
 @auth_bp.route("/signin", methods=["POST"])
@@ -54,18 +78,27 @@ def signin():
     log_event(credentials["email"], "USER_SIGNIN", {"email": credentials["email"]}, request.remote_addr)
 
     response_data = {"message": msg}
+    refresh_token = None
     if isinstance(tokens, dict):
         response_data.update(tokens)
+        refresh_token = tokens.get("refresh_token")
     else:
         response_data["token"] = tokens
 
-    return jsonify(response_data), status_code
+    resp = make_response(jsonify(response_data), status_code)
+    if refresh_token:
+        _set_refresh_cookie(resp, refresh_token)
+    return resp
 
 
 @auth_bp.route("/refresh", methods=["POST"])
 def refresh():
     data = request.get_json(silent=True) or {}
-    token_str = data.get("refresh_token") or request.headers.get("X-Refresh-Token")
+    token_str = (
+        request.cookies.get("refresh_token")
+        or data.get("refresh_token")
+        or request.headers.get("X-Refresh-Token")
+    )
 
     success, msg, tokens, status_code = refresh_access_token(token_str)
     if not success:
@@ -73,7 +106,28 @@ def refresh():
 
     response_data = {"message": msg}
     response_data.update(tokens)
-    return jsonify(response_data), status_code
+
+    resp = make_response(jsonify(response_data), status_code)
+    refresh_token = tokens.get("refresh_token")
+    if refresh_token:
+        _set_refresh_cookie(resp, refresh_token)
+    return resp
+
+
+@auth_bp.route("/logout", methods=["POST"])
+@token_required
+def logout():
+    jti = getattr(request, "token_jti", None)
+    if jti:
+        blacklist_token(jti, expires_in_seconds=86400)
+
+    user_email = getattr(request, "current_user", None)
+    email_str = user_email.email if user_email else None
+    log_event(email_str, "USER_LOGOUT", {}, request.remote_addr)
+
+    resp = make_response(jsonify({"message": "Successfully logged out"}), 200)
+    resp.delete_cookie("refresh_token", path="/")
+    return resp
 
 
 @auth_bp.route("/forgot-password", methods=["POST"])
@@ -119,6 +173,7 @@ def verify_email():
 
     log_event(None, "EMAIL_VERIFIED", {}, request.remote_addr)
     return jsonify({"message": msg}), status_code
+
 
 
 

@@ -42,6 +42,9 @@ def token_required(f):
         if not user:
             return jsonify({"error": "User not found"}), 404
 
+        request.token = token
+        request.token_payload = payload
+        request.token_jti = payload.get("jti")
         request.user_id = str(user.id)
         request.user_oid = user.id
         request.user_role = user.role or UserRole.USER

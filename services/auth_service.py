@@ -7,11 +7,14 @@ from auth.utils import generate_token, generate_tokens_pair, decode_token
 from models.user import User, UserRole
 
 
+from sqlalchemy import func
+
+
 def register_user(cleaned_data):
     """Business logic to register a new user."""
-    email = cleaned_data["email"]
+    email = cleaned_data["email"].strip().lower()
 
-    if User.query.filter_by(email=email).first():
+    if User.query.filter(func.lower(User.email) == email).first():
         return False, "Email already registered", None, 409
 
     role = cleaned_data.get("role")
@@ -43,9 +46,11 @@ def register_user(cleaned_data):
 
 def authenticate_user(email, password):
     """Business logic to authenticate user credentials."""
-    user = User.query.filter_by(email=email).first()
+    clean_email = email.strip().lower()
+    user = User.query.filter(func.lower(User.email) == clean_email).first()
     if not user or not check_password_hash(user.password, password):
         return False, "Invalid email or password", None, 401
+
 
     tokens = generate_tokens_pair(user.id)
     return True, "Signed in", tokens, 200
