@@ -97,6 +97,23 @@ def generate_verification_token(user_id):
     return token
 
 
+def request_verification_email(user_id):
+    """Generate verification token, send async email task via Celery, and return token."""
+    try:
+        user_id_int = int(user_id)
+        user = db.session.get(User, user_id_int)
+        if not user:
+            return False, "User not found", None, 404
+        if user.is_verified:
+            return False, "Email is already verified", None, 400
+
+        token = generate_verification_token(user_id)
+        return True, "Verification email sent successfully", {"verification_token": token}, 200
+    except Exception as e:
+        return False, str(e), None, 500
+
+
+
 def verify_user_email(verification_token):
     """Verify user email using token and clear verification token from DB."""
     if not verification_token:

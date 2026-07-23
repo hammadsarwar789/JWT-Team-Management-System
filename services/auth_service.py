@@ -10,6 +10,10 @@ from models.user import User, UserRole
 from sqlalchemy import func
 
 
+from flask import current_app
+from services.password_reset_service import generate_verification_token
+
+
 def register_user(cleaned_data):
     """Business logic to register a new user."""
     email = cleaned_data["email"].strip().lower()
@@ -40,7 +44,13 @@ def register_user(cleaned_data):
         db.session.rollback()
         return False, "Email already registered", None, 409
 
+    # Generate verification token and dispatch Celery email task
+    verification_token = generate_verification_token(user.id)
+
     tokens = generate_tokens_pair(user.id)
+    if isinstance(tokens, dict):
+        tokens["verification_token"] = verification_token
+
     return True, "Account created", tokens, 201
 
 
@@ -51,9 +61,16 @@ def authenticate_user(email, password):
     if not user or not check_password_hash(user.password, password):
         return False, "Invalid email or password", None, 401
 
+    require_verify = current_app.config.get("REQUIRE_EMAIL_VERIFICATION", True)
+    is_testing = current_app.config.get("TESTING", False)
+
+    # Block signin if email verification is required and user email is unverified
+    if require_verify and not is_testing and not user.is_verified:
+        return False, "Email not verified. Please verify your email before logging in.", None, 403
 
     tokens = generate_tokens_pair(user.id)
     return True, "Signed in", tokens, 200
+
 
 
 def refresh_access_token(refresh_token):

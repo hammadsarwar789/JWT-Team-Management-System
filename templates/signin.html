@@ -76,11 +76,30 @@
             localStorage.setItem("refresh_token", data.refresh_token);
           }
           window.location.href = "/profile";
+        } else if (res.status === 403 && data.error && data.error.includes("not verified")) {
+          msg.innerHTML = `${data.error} <br><button type="button" id="verify-now-btn" class="secondary" style="margin-top:8px; padding: 4px 10px; font-size:0.8rem;">Enter Verification Token</button>`;
+          document.getElementById("verify-now-btn").addEventListener("click", async () => {
+            const tokenInput = prompt("Enter your verification_token (from email / server log):");
+            if (!tokenInput) return;
+            const vRes = await fetch("/api/auth/verify-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ verification_token: tokenInput.trim() }),
+            });
+            const vData = await vRes.json();
+            if (vRes.ok) {
+              msg.className = "message success";
+              msg.textContent = "Email verified successfully! You can now sign in.";
+            } else {
+              msg.className = "message";
+              msg.textContent = vData.error || "Verification failed";
+            }
+          });
         } else {
           msg.textContent = data.error || "Something went wrong";
         }
       } catch (err) {
-        msg.textContent = "Connection error. Please ensure 'py run.py' is running.";
+        msg.textContent = "Connection error. Please ensure server is running.";
       } finally {
         btn.disabled = false;
         btn.textContent = "Sign In";

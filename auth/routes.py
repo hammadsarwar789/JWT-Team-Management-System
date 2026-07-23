@@ -5,11 +5,13 @@ from services.auth_service import register_user, authenticate_user, refresh_acce
 from services.password_reset_service import (
     request_password_reset,
     confirm_password_reset,
+    request_verification_email,
     verify_user_email,
 )
 from services.audit_service import log_event
 from services.token_blacklist_service import blacklist_token
 from middleware.auth import token_required
+
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -162,6 +164,23 @@ def reset_password():
     return jsonify({"message": msg}), status_code
 
 
+@auth_bp.route("/request-verification-email", methods=["POST"])
+@token_required
+def request_verification_email_route():
+    success, msg, result_data, status_code = request_verification_email(request.user_id)
+    if not success:
+        return jsonify({"error": msg}), status_code
+
+    user_email = getattr(request.current_user, "email", None)
+    log_event(user_email, "VERIFICATION_EMAIL_REQUESTED", {}, request.remote_addr)
+
+    res_body = {"message": msg}
+    if result_data:
+        res_body.update(result_data)
+
+    return jsonify(res_body), status_code
+
+
 @auth_bp.route("/verify-email", methods=["POST"])
 def verify_email():
     data = request.get_json(silent=True) or {}
@@ -173,6 +192,7 @@ def verify_email():
 
     log_event(None, "EMAIL_VERIFIED", {}, request.remote_addr)
     return jsonify({"message": msg}), status_code
+
 
 
 

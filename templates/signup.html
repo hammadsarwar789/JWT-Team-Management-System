@@ -43,16 +43,36 @@
         const data = await res.json();
 
         if (res.ok) {
-          localStorage.setItem("token", data.access_token || data.token);
-          if (data.refresh_token) {
-            localStorage.setItem("refresh_token", data.refresh_token);
-          }
-          window.location.href = "/profile";
+          msg.className = "message success";
+          msg.innerHTML = `Account created! Verification email dispatched via Celery.<br><br>
+            <label style="font-size:0.85rem;">Verification Token:</label>
+            <input type="text" id="signup-vtoken" value="${data.verification_token || ''}" placeholder="Verification Token" style="margin: 4px 0 8px;">
+            <button type="button" id="signup-verify-btn" style="padding: 6px 12px; font-size:0.85rem;">Verify Email & Sign In</button>`;
+
+          document.getElementById("signup-verify-btn").addEventListener("click", async () => {
+            const vToken = document.getElementById("signup-vtoken").value.trim();
+            if (!vToken) return;
+            const vRes = await fetch("/api/auth/verify-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ verification_token: vToken }),
+            });
+            const vData = await vRes.json();
+            if (vRes.ok) {
+              localStorage.setItem("token", data.access_token || data.token);
+              if (data.refresh_token) {
+                localStorage.setItem("refresh_token", data.refresh_token);
+              }
+              window.location.href = "/profile";
+            } else {
+              alert(vData.error || "Verification failed");
+            }
+          });
         } else {
           msg.textContent = data.error || "Something went wrong";
         }
       } catch (err) {
-        msg.textContent = "Connection error. Please ensure 'py run.py' is running.";
+        msg.textContent = "Connection error. Please ensure server is running.";
       } finally {
         btn.disabled = false;
         btn.textContent = "Sign Up";

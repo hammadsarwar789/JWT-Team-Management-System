@@ -306,25 +306,48 @@
       }
     }
 
-    // Verify email action
+    // Verify email action: Send async Celery verification email and prompt for token
     document.getElementById("verify-email-btn").addEventListener("click", async () => {
       const msg = document.getElementById("profile-message");
-      msg.textContent = "Verifying email...";
+      msg.textContent = "Sending verification email via Celery...";
       msg.className = "message";
 
-      const res = await fetchWithAuth("/api/auth/verify-email", {
+      // 1. Dispatch verification email via Celery task
+      const reqRes = await fetchWithAuth("/api/v1/auth/request-verification-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const reqData = await reqRes.json();
+
+      if (!reqRes || !reqRes.ok) {
+        msg.textContent = reqData.error || "Could not send verification email";
+        return;
+      }
+
+      msg.className = "message success";
+      msg.textContent = "Verification email dispatched! Check terminal logs or enter token below.";
+
+      // 2. Prompt user for token (prefilled with generated token in development for ease of testing)
+      const defaultToken = reqData.verification_token || "";
+      const userToken = prompt("A verification token was dispatched via Celery.\n\nEnter verification_token to confirm:", defaultToken);
+      if (!userToken) return;
+
+      // 3. Confirm verification token
+      const verifyRes = await fetch("/api/v1/auth/verify-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verification_token: getToken() }),
+        body: JSON.stringify({ verification_token: userToken.strip ? userToken.strip() : userToken }),
       });
-      const data = await res.json();
-      if (res && res.ok) {
+      const verifyData = await verifyRes.json();
+
+      if (verifyRes.ok) {
         msg.className = "message success";
-        msg.textContent = data.message || "Email verified successfully!";
+        msg.textContent = verifyData.message || "Email verified successfully!";
         loadProfile();
         loadDashboardStats();
       } else {
-        msg.textContent = data.error || "Could not verify email";
+        msg.className = "message";
+        msg.textContent = verifyData.error || "Invalid verification token";
       }
     });
 

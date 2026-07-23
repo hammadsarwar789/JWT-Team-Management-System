@@ -26,9 +26,13 @@ class Config:
     JWT_COOKIE_HTTPONLY = True
     JWT_COOKIE_SAMESITE = "Lax"
 
+    # Email Verification Enforcement
+    REQUIRE_EMAIL_VERIFICATION = os.environ.get("REQUIRE_EMAIL_VERIFICATION", "True").lower() in ("true", "1", "t")
+
     # Redis & Celery settings
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
     CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "False").lower() in ("true", "1", "t")
+
 
