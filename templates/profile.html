@@ -1,487 +1,501 @@
 {% extends "base.html" %}
 {% block title %}My Profile & Dashboard{% endblock %}
 {% block content %}
-  <div class="topbar">
-    <h1>Dashboard & Profile</h1>
-    <button id="logout-btn" class="secondary">Log out</button>
+<div class="topbar">
+  <h1>Dashboard & Profile</h1>
+  <button id="logout-btn" class="secondary">Log out</button>
+</div>
+
+<!-- Dashboard Stats Grid -->
+<section class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-num" id="stat-total">0</div>
+    <div class="stat-label">Total Fellows</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="stat-recent">0</div>
+    <div class="stat-label">Added 7d</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="stat-complete">0%</div>
+    <div class="stat-label">Completeness</div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="avatar-section">
+    <img id="avatar-preview" class="avatar-img" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff"
+      alt="Avatar"
+      onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=User&background=0284c7&color=fff';">
+
+    <div>
+      <div class="badge-group">
+        <span id="role-display" class="badge badge-user">User</span>
+        <span id="verify-display" class="badge badge-unverified">Unverified</span>
+      </div>
+      <form id="avatar-form" style="margin-top: 10px;">
+        <input type="file" id="picture-input" accept="image/png, image/jpeg, image/webp" required>
+        <button type="submit" id="upload-btn" class="secondary" style="padding: 6px 12px; font-size: 0.85rem;">Upload
+          Photo</button>
+      </form>
+    </div>
   </div>
 
-  <!-- Dashboard Stats Grid -->
-  <section class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-num" id="stat-total">0</div>
-      <div class="stat-label">Total Fellows</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" id="stat-recent">0</div>
-      <div class="stat-label">Added 7d</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-num" id="stat-complete">0%</div>
-      <div class="stat-label">Completeness</div>
-    </div>
-  </section>
+  <h2>Account Details</h2>
+  <form id="profile-form">
+    <label>Username</label>
+    <input type="text" id="username">
 
-  <section class="card">
-    <div class="avatar-section">
-      <img id="avatar-preview" class="avatar-img" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=User&background=0284c7&color=fff';">
+    <label>Full Name</label>
+    <input type="text" id="full_name">
 
-      <div>
-        <div class="badge-group">
-          <span id="role-display" class="badge badge-user">User</span>
-          <span id="verify-display" class="badge badge-unverified">Unverified</span>
-        </div>
-        <form id="avatar-form" style="margin-top: 10px;">
-          <input type="file" id="picture-input" accept="image/png, image/jpeg, image/webp" required>
-          <button type="submit" id="upload-btn" class="secondary" style="padding: 6px 12px; font-size: 0.85rem;">Upload Photo</button>
-        </form>
-      </div>
+    <label>Bio</label>
+    <textarea id="bio" rows="3"></textarea>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+      <p class="readonly" id="email-display"></p>
+      <button type="button" id="verify-email-btn" class="secondary" style="padding: 4px 10px; font-size: 0.8rem;">Verify
+        Email</button>
     </div>
 
-    <h2>Account Details</h2>
-    <form id="profile-form">
-      <label>Username</label>
-      <input type="text" id="username">
+    <button type="submit" style="margin-top: 8px;">Save Changes</button>
+  </form>
+  <p class="message" id="profile-message"></p>
+</section>
 
-      <label>Full Name</label>
-      <input type="text" id="full_name">
+<!-- Admin Panel (Only visible for Admin users) -->
+<section class="card hidden" id="admin-panel">
+  <h2>Admin Panel - Manage User Roles & System Fellows</h2>
+  <form id="admin-role-form">
+    <label>Target User ID</label>
+    <input type="text" id="admin-target-id" placeholder="MongoDB User ObjectId" required>
 
-      <label>Bio</label>
-      <textarea id="bio" rows="3"></textarea>
+    <label>New Role</label>
+    <select id="admin-role-select">
+      <option value="User">User</option>
+      <option value="Manager">Manager</option>
+      <option value="Admin">Admin</option>
+    </select>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
-        <p class="readonly" id="email-display"></p>
-        <button type="button" id="verify-email-btn" class="secondary" style="padding: 4px 10px; font-size: 0.8rem;">Verify Email</button>
-      </div>
+    <button type="submit" class="secondary">Update User Role</button>
+  </form>
+  <p class="message" id="admin-message"></p>
 
-      <button type="submit" style="margin-top: 8px;">Save Changes</button>
-    </form>
-    <p class="message" id="profile-message"></p>
-  </section>
-
-  <!-- Admin Panel (Only visible for Admin users) -->
-  <section class="card hidden" id="admin-panel">
-    <h2>Admin Panel - Manage User Roles & System Fellows</h2>
-    <form id="admin-role-form">
-      <label>Target User ID</label>
-      <input type="text" id="admin-target-id" placeholder="MongoDB User ObjectId" required>
-
-      <label>New Role</label>
-      <select id="admin-role-select">
-        <option value="User">User</option>
-        <option value="Manager">Manager</option>
-        <option value="Admin">Admin</option>
-      </select>
-
-      <button type="submit" class="secondary">Update User Role</button>
-    </form>
-    <p class="message" id="admin-message"></p>
-
-    <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #334155;">
-      <label>System Fellows View Scope</label>
-      <div style="display: flex; gap: 10px; margin-top: 8px;">
-        <button type="button" id="admin-view-my" class="secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">My Contacts Only</button>
-        <button type="button" id="admin-view-all" class="secondary" style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">All System Contacts</button>
-      </div>
+  <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #334155;">
+    <label>System Fellows View Scope</label>
+    <div style="display: flex; gap: 10px; margin-top: 8px;">
+      <button type="button" id="admin-view-my" class="secondary"
+        style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">My Contacts Only</button>
+      <button type="button" id="admin-view-all" class="secondary"
+        style="flex: 1; padding: 6px 10px; font-size: 0.85rem;">All System Contacts</button>
     </div>
+  </div>
 
-    <!-- Audit Logs Section -->
-    <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #334155;">
-      <h3 style="font-size: 0.95rem; margin: 0 0 8px; color: #cbd5e1;">System Audit Logs</h3>
-      <div style="overflow-x: auto; max-height: 200px; font-size: 0.82rem;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-          <thead>
-            <tr style="border-bottom: 1px solid #334155; color: #94a3b8;">
-              <th style="padding: 6px;">Action</th>
-              <th style="padding: 6px;">User</th>
-              <th style="padding: 6px;">Date</th>
-            </tr>
-          </thead>
-          <tbody id="audit-log-tbody">
-            <tr><td colspan="3" style="padding: 6px; text-align: center; color: #94a3b8;">Loading logs...</td></tr>
-          </tbody>
-        </table>
-      </div>
+  <!-- Audit Logs Section -->
+  <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #334155;">
+    <h3 style="font-size: 0.95rem; margin: 0 0 8px; color: #cbd5e1;">System Audit Logs</h3>
+    <div style="overflow-x: auto; max-height: 200px; font-size: 0.82rem;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+          <tr style="border-bottom: 1px solid #334155; color: #94a3b8;">
+            <th style="padding: 6px;">Action</th>
+            <th style="padding: 6px;">User</th>
+            <th style="padding: 6px;">Date</th>
+          </tr>
+        </thead>
+        <tbody id="audit-log-tbody">
+          <tr>
+            <td colspan="3" style="padding: 6px; text-align: center; color: #94a3b8;">Loading logs...</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </section>
+  </div>
+</section>
 
 
 
-  <!-- Analytics Summary Section -->
-  <section class="card" style="margin-bottom: 24px;">
-    <h2>Analytics Breakdown</h2>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 0.85rem; margin-top: 12px;">
-      <div>
-        <h4 style="margin: 0 0 6px; color: #38bdf8;">By Relationship</h4>
-        <ul id="analytics-relations" style="list-style: none; padding: 0; margin: 0; color: #cbd5e1;">
-          <li>Loading...</li>
-        </ul>
-      </div>
-      <div>
-        <h4 style="margin: 0 0 6px; color: #38bdf8;">Top Email Domains</h4>
-        <ul id="analytics-domains" style="list-style: none; padding: 0; margin: 0; color: #cbd5e1;">
-          <li>Loading...</li>
-        </ul>
-      </div>
+<!-- Analytics Summary Section -->
+<section class="card" style="margin-bottom: 24px;">
+  <h2>Analytics Breakdown</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 0.85rem; margin-top: 12px;">
+    <div>
+      <h4 style="margin: 0 0 6px; color: #38bdf8;">By Relationship</h4>
+      <ul id="analytics-relations" style="list-style: none; padding: 0; margin: 0; color: #cbd5e1;">
+        <li>Loading...</li>
+      </ul>
     </div>
-  </section>
-
-  <!-- Fellows Section with Search, Sort & Pagination -->
-  <section class="card">
-    <h2>Fellows Contacts</h2>
-    <form id="fellow-form">
-      <input type="text" id="fellow-name" placeholder="Name" required>
-      <input type="email" id="fellow-email" placeholder="Email (optional)">
-      <input type="text" id="fellow-relation" placeholder="Relation (e.g. classmate)">
-      <button type="submit">Add Fellow</button>
-    </form>
-    <p class="message" id="fellow-message"></p>
-
-    <!-- Toolbar: Search & Sort & Import/Export -->
-    <div class="toolbar" style="margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-      <input type="text" id="search-input" placeholder="Search fellows..." style="flex: 1; min-width: 160px;">
-      <select id="sort-select" style="width: 120px;">
-        <option value="created_at">Date Added</option>
-        <option value="name">Name</option>
-        <option value="relation">Relation</option>
-      </select>
-      <select id="order-select" style="width: 80px;">
-        <option value="desc">Desc</option>
-        <option value="asc">Asc</option>
-      </select>
-      <button type="button" id="export-csv-btn" class="secondary" style="padding: 6px 10px; font-size: 0.8rem;">Export CSV</button>
-      <button type="button" id="export-json-btn" class="secondary" style="padding: 6px 10px; font-size: 0.8rem;">Export JSON</button>
-      <label for="import-file-input" class="secondary" style="cursor: pointer; padding: 6px 10px; font-size: 0.8rem; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #cbd5e1;">Import File</label>
-      <input type="file" id="import-file-input" accept=".csv, .json" style="display: none;">
+    <div>
+      <h4 style="margin: 0 0 6px; color: #38bdf8;">Top Email Domains</h4>
+      <ul id="analytics-domains" style="list-style: none; padding: 0; margin: 0; color: #cbd5e1;">
+        <li>Loading...</li>
+      </ul>
     </div>
+  </div>
+</section>
+
+<!-- Fellows Section with Search, Sort & Pagination -->
+<section class="card">
+  <h2>Fellows Contacts</h2>
+  <form id="fellow-form">
+    <input type="text" id="fellow-name" placeholder="Name" required>
+    <input type="email" id="fellow-email" placeholder="Email (optional)">
+    <input type="text" id="fellow-relation" placeholder="Relation (e.g. classmate)">
+    <button type="submit">Add Fellow</button>
+  </form>
+  <p class="message" id="fellow-message"></p>
+
+  <!-- Toolbar: Search & Sort & Import/Export -->
+  <div class="toolbar" style="margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+    <input type="text" id="search-input" placeholder="Search fellows..." style="flex: 1; min-width: 160px;">
+    <select id="sort-select" style="width: 120px;">
+      <option value="created_at">Date Added</option>
+      <option value="name">Name</option>
+      <option value="relation">Relation</option>
+    </select>
+    <select id="order-select" style="width: 80px;">
+      <option value="desc">Desc</option>
+      <option value="asc">Asc</option>
+    </select>
+    <button type="button" id="export-csv-btn" class="secondary" style="padding: 6px 10px; font-size: 0.8rem;">Export
+      CSV</button>
+    <button type="button" id="export-json-btn" class="secondary" style="padding: 6px 10px; font-size: 0.8rem;">Export
+      JSON</button>
+    <label for="import-file-input" class="secondary"
+      style="cursor: pointer; padding: 6px 10px; font-size: 0.8rem; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #cbd5e1;">Import
+      File</label>
+    <input type="file" id="import-file-input" accept=".csv, .json" style="display: none;">
+  </div>
 
 
-    <ul id="fellow-list"></ul>
+  <ul id="fellow-list"></ul>
 
-    <!-- Pagination Controls -->
-    <div class="pagination-container">
-      <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
-      <div class="pagination-buttons">
-        <button type="button" id="prev-page-btn" class="secondary" style="padding: 4px 10px; font-size: 0.8rem;">Prev</button>
-        <button type="button" id="next-page-btn" class="secondary" style="padding: 4px 10px; font-size: 0.8rem;">Next</button>
-      </div>
+  <!-- Pagination Controls -->
+  <div class="pagination-container">
+    <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
+    <div class="pagination-buttons">
+      <button type="button" id="prev-page-btn" class="secondary"
+        style="padding: 4px 10px; font-size: 0.8rem;">Prev</button>
+      <button type="button" id="next-page-btn" class="secondary"
+        style="padding: 4px 10px; font-size: 0.8rem;">Next</button>
     </div>
-  </section>
+  </div>
+</section>
 
-  <script>
-    let currentUserId = null;
-    let currentPage = 1;
-    let currentLimit = 5;
+<script>
+  let currentUserId = null;
+  let currentPage = 1;
+  let currentLimit = 5;
 
-    function getToken() {
-      return localStorage.getItem("token");
+  function getToken() {
+    return localStorage.getItem("token");
+  }
+
+  async function fetchWithAuth(url, options = {}) {
+    let token = getToken();
+    if (!token) {
+      window.location.href = "/signin";
+      return null;
     }
 
-    async function fetchWithAuth(url, options = {}) {
-      let token = getToken();
-      if (!token) {
+    options.headers = options.headers || {};
+    options.headers["Authorization"] = "Bearer " + token;
+
+    let res = await fetch(url, options);
+
+    // Automatic Refresh Token Rotation if 401 Unauthorized
+    if (res.status === 401 && localStorage.getItem("refresh_token")) {
+      const refRes = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: localStorage.getItem("refresh_token") }),
+      });
+
+      const refData = await refRes.json();
+      if (refRes.ok && refData.access_token) {
+        localStorage.setItem("token", refData.access_token);
+        options.headers["Authorization"] = "Bearer " + refData.access_token;
+        res = await fetch(url, options);
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("refresh_token");
         window.location.href = "/signin";
         return null;
       }
-
-      options.headers = options.headers || {};
-      options.headers["Authorization"] = "Bearer " + token;
-
-      let res = await fetch(url, options);
-
-      // Automatic Refresh Token Rotation if 401 Unauthorized
-      if (res.status === 401 && localStorage.getItem("refresh_token")) {
-        const refRes = await fetch("/api/v1/auth/refresh", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: localStorage.getItem("refresh_token") }),
-        });
-
-        const refData = await refRes.json();
-        if (refRes.ok && refData.access_token) {
-          localStorage.setItem("token", refData.access_token);
-          options.headers["Authorization"] = "Bearer " + refData.access_token;
-          res = await fetch(url, options);
-        } else {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refresh_token");
-          window.location.href = "/signin";
-          return null;
-        }
-      }
-
-      return res;
     }
 
-    document.getElementById("logout-btn").addEventListener("click", () => {
-      localStorage.removeItem("token");
-      localStorage.removeItem("refresh_token");
-      window.location.href = "/signin";
-    });
+    return res;
+  }
 
-    async function loadDashboardStats() {
-      const res = await fetchWithAuth("/api/dashboard/stats");
-      if (!res || !res.ok) return;
-      const stats = await res.json();
-      document.getElementById("stat-total").textContent = stats.total_fellows || 0;
-      document.getElementById("stat-recent").textContent = stats.recent_fellows_7d || 0;
-      document.getElementById("stat-complete").textContent = (stats.profile_completeness_pct || 0) + "%";
+  document.getElementById("logout-btn").addEventListener("click", () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    window.location.href = "/signin";
+  });
+
+  async function loadDashboardStats() {
+    const res = await fetchWithAuth("/api/dashboard/stats");
+    if (!res || !res.ok) return;
+    const stats = await res.json();
+    document.getElementById("stat-total").textContent = stats.total_fellows || 0;
+    document.getElementById("stat-recent").textContent = stats.recent_fellows_7d || 0;
+    document.getElementById("stat-complete").textContent = (stats.profile_completeness_pct || 0) + "%";
+  }
+
+  async function loadAuditLogs() {
+    const res = await fetchWithAuth("/api/v1/admin/audit-logs?limit=15");
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    const tbody = document.getElementById("audit-log-tbody");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    const items = data.items || [];
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="padding: 6px; text-align: center; color: #94a3b8;">No audit logs recorded yet.</td></tr>`;
+      return;
     }
-
-    async function loadAuditLogs() {
-      const res = await fetchWithAuth("/api/v1/admin/audit-logs?limit=15");
-      if (!res || !res.ok) return;
-      const data = await res.json();
-      const tbody = document.getElementById("audit-log-tbody");
-      if (!tbody) return;
-      tbody.innerHTML = "";
-      const items = data.items || [];
-      if (items.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="padding: 6px; text-align: center; color: #94a3b8;">No audit logs recorded yet.</td></tr>`;
-        return;
-      }
-      items.forEach((log) => {
-        const tr = document.createElement("tr");
-        tr.style.borderBottom = "1px solid #1e293b";
-        const dateStr = log.created_at ? log.created_at.replace("T", " ").substring(0, 16) : "";
-        tr.innerHTML = `
+    items.forEach((log) => {
+      const tr = document.createElement("tr");
+      tr.style.borderBottom = "1px solid #1e293b";
+      const dateStr = log.created_at ? log.created_at.replace("T", " ").substring(0, 16) : "";
+      tr.innerHTML = `
           <td style="padding: 6px; font-weight: 600; color: #38bdf8;">${log.action}</td>
           <td style="padding: 6px; color: #cbd5e1;">${log.username || "System"}</td>
           <td style="padding: 6px; color: #94a3b8;">${dateStr}</td>
         `;
-        tbody.appendChild(tr);
-      });
+      tbody.appendChild(tr);
+    });
+  }
+
+
+  async function loadProfile() {
+    const res = await fetchWithAuth("/api/profile");
+    if (!res || !res.ok) return;
+
+    const user = await res.json();
+    currentUserId = user.id;
+    document.getElementById("username").value = user.username || "";
+    document.getElementById("full_name").value = user.full_name || "";
+    document.getElementById("bio").value = user.bio || "";
+    document.getElementById("email-display").textContent = "Email: " + user.email;
+
+    // Role badge styling
+    const roleBadge = document.getElementById("role-display");
+    roleBadge.textContent = user.role || "User";
+    if (user.role === "Admin") {
+      adminViewAll = true;
+      roleBadge.className = "badge badge-admin";
+      document.getElementById("admin-panel").classList.remove("hidden");
+      document.getElementById("admin-view-all").style.borderColor = "#ef4444";
+      document.getElementById("admin-view-my").style.borderColor = "";
+      loadAuditLogs();
+      loadFellows();
+    } else {
+      adminViewAll = false;
+      roleBadge.className = "badge badge-user";
+      document.getElementById("admin-panel").classList.add("hidden");
     }
 
 
-    async function loadProfile() {
-      const res = await fetchWithAuth("/api/profile");
-      if (!res || !res.ok) return;
 
-      const user = await res.json();
-      currentUserId = user.id;
-      document.getElementById("username").value = user.username || "";
-      document.getElementById("full_name").value = user.full_name || "";
-      document.getElementById("bio").value = user.bio || "";
-      document.getElementById("email-display").textContent = "Email: " + user.email;
-
-      // Role badge styling
-      const roleBadge = document.getElementById("role-display");
-      roleBadge.textContent = user.role || "User";
-      if (user.role === "Admin") {
-        adminViewAll = true;
-        roleBadge.className = "badge badge-admin";
-        document.getElementById("admin-panel").classList.remove("hidden");
-        document.getElementById("admin-view-all").style.borderColor = "#ef4444";
-        document.getElementById("admin-view-my").style.borderColor = "";
-        loadAuditLogs();
-        loadFellows();
-      } else {
-        adminViewAll = false;
-        roleBadge.className = "badge badge-user";
-        document.getElementById("admin-panel").classList.add("hidden");
-      }
-
-
-
-      // Verification badge
-      const verifyBadge = document.getElementById("verify-display");
-      const verifyBtn = document.getElementById("verify-email-btn");
-      if (user.is_verified) {
-        verifyBadge.textContent = "Verified";
-        verifyBadge.className = "badge badge-verified";
-        verifyBtn.classList.add("hidden");
-      } else {
-        verifyBadge.textContent = "Unverified";
-        verifyBadge.className = "badge badge-unverified";
-        verifyBtn.classList.remove("hidden");
-      }
-
-      // Avatar
-      if (user.profile_picture) {
-        const picUrl = user.profile_picture.includes("?") ? user.profile_picture : user.profile_picture + "?t=" + Date.now();
-        document.getElementById("avatar-preview").src = picUrl;
-      } else {
-        document.getElementById("avatar-preview").src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || "User")}&background=0284c7&color=fff`;
-      }
+    // Verification badge
+    const verifyBadge = document.getElementById("verify-display");
+    const verifyBtn = document.getElementById("verify-email-btn");
+    if (user.is_verified) {
+      verifyBadge.textContent = "Verified";
+      verifyBadge.className = "badge badge-verified";
+      verifyBtn.classList.add("hidden");
+    } else {
+      verifyBadge.textContent = "Unverified";
+      verifyBadge.className = "badge badge-unverified";
+      verifyBtn.classList.remove("hidden");
     }
 
-    // Verify email action: Send async Celery verification email and prompt for token
-    document.getElementById("verify-email-btn").addEventListener("click", async () => {
-      const msg = document.getElementById("profile-message");
-      msg.textContent = "Sending verification email via Celery...";
-      msg.className = "message";
+    // Avatar
+    if (user.profile_picture) {
+      const picUrl = user.profile_picture.includes("?") ? user.profile_picture : user.profile_picture + "?t=" + Date.now();
+      document.getElementById("avatar-preview").src = picUrl;
+    } else {
+      document.getElementById("avatar-preview").src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username || "User")}&background=0284c7&color=fff`;
+    }
+  }
 
-      // 1. Dispatch verification email via Celery task
-      const reqRes = await fetchWithAuth("/api/v1/auth/request-verification-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      const reqData = await reqRes.json();
+  // Verify email action: Send async Celery verification email and prompt for token
+  document.getElementById("verify-email-btn").addEventListener("click", async () => {
+    const msg = document.getElementById("profile-message");
+    msg.textContent = "Sending verification email via Celery...";
+    msg.className = "message";
 
-      if (!reqRes || !reqRes.ok) {
-        msg.textContent = reqData.error || "Could not send verification email";
-        return;
-      }
+    // 1. Dispatch verification email via Celery task
+    const reqRes = await fetchWithAuth("/api/v1/auth/request-verification-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    const reqData = await reqRes.json();
 
+    if (!reqRes || !reqRes.ok) {
+      msg.textContent = reqData.error || "Could not send verification email";
+      return;
+    }
+
+    msg.className = "message success";
+    msg.textContent = "Verification email dispatched! Check terminal logs or enter token below.";
+
+    // 2. Prompt user for token (prefilled with generated token in development for ease of testing)
+    const defaultToken = reqData.verification_token || "";
+    const userToken = prompt("A verification token was dispatched via Celery.\n\nEnter verification_token to confirm:", defaultToken);
+    if (!userToken) return;
+
+    // 3. Confirm verification token
+    const verifyRes = await fetch("/api/v1/auth/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ verification_token: userToken.strip ? userToken.strip() : userToken }),
+    });
+    const verifyData = await verifyRes.json();
+
+    if (verifyRes.ok) {
       msg.className = "message success";
-      msg.textContent = "Verification email dispatched! Check terminal logs or enter token below.";
-
-      // 2. Prompt user for token (prefilled with generated token in development for ease of testing)
-      const defaultToken = reqData.verification_token || "";
-      const userToken = prompt("A verification token was dispatched via Celery.\n\nEnter verification_token to confirm:", defaultToken);
-      if (!userToken) return;
-
-      // 3. Confirm verification token
-      const verifyRes = await fetch("/api/v1/auth/verify-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ verification_token: userToken.strip ? userToken.strip() : userToken }),
-      });
-      const verifyData = await verifyRes.json();
-
-      if (verifyRes.ok) {
-        msg.className = "message success";
-        msg.textContent = verifyData.message || "Email verified successfully!";
-        loadProfile();
-        loadDashboardStats();
-      } else {
-        msg.className = "message";
-        msg.textContent = verifyData.error || "Invalid verification token";
-      }
-    });
-
-    document.getElementById("avatar-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fileInput = document.getElementById("picture-input");
-      if (!fileInput.files.length) return;
-
-      const formData = new FormData();
-      formData.append("picture", fileInput.files[0]);
-
-      const msg = document.getElementById("profile-message");
-      msg.textContent = "Uploading photo...";
+      msg.textContent = verifyData.message || "Email verified successfully!";
+      loadProfile();
+      loadDashboardStats();
+    } else {
       msg.className = "message";
+      msg.textContent = verifyData.error || "Invalid verification token";
+    }
+  });
 
-      const token = getToken();
-      const res = await fetch("/api/profile/picture", {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + token },
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok) {
-        msg.className = "message success";
-        msg.textContent = "Photo updated successfully!";
-        if (data.user && data.user.profile_picture) {
-          document.getElementById("avatar-preview").src = data.user.profile_picture + "?t=" + Date.now();
-        }
-        fileInput.value = "";
-        loadDashboardStats();
-      } else {
-        msg.textContent = data.error || "Could not upload photo";
-      }
+  document.getElementById("avatar-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById("picture-input");
+    if (!fileInput.files.length) return;
+
+    const formData = new FormData();
+    formData.append("picture", fileInput.files[0]);
+
+    const msg = document.getElementById("profile-message");
+    msg.textContent = "Uploading photo...";
+    msg.className = "message";
+
+    const token = getToken();
+    const res = await fetch("/api/profile/picture", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token },
+      body: formData,
     });
-
-    document.getElementById("profile-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const body = {
-        username: document.getElementById("username").value,
-        full_name: document.getElementById("full_name").value,
-        bio: document.getElementById("bio").value,
-      };
-      const res = await fetchWithAuth("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const msg = document.getElementById("profile-message");
-      if (res && res.ok) {
-        msg.className = "message success";
-        msg.textContent = "Profile saved successfully.";
-        loadDashboardStats();
-      } else {
-        const data = await res.json();
-        msg.textContent = data.error || "Could not save changes";
+    const data = await res.json();
+    if (res.ok) {
+      msg.className = "message success";
+      msg.textContent = "Photo updated successfully!";
+      if (data.user && data.user.profile_picture) {
+        document.getElementById("avatar-preview").src = data.user.profile_picture + "?t=" + Date.now();
       }
+      fileInput.value = "";
+      loadDashboardStats();
+    } else {
+      msg.textContent = data.error || "Could not upload photo";
+    }
+  });
+
+  document.getElementById("profile-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = {
+      username: document.getElementById("username").value,
+      full_name: document.getElementById("full_name").value,
+      bio: document.getElementById("bio").value,
+    };
+    const res = await fetchWithAuth("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-
-    // Admin role update form
-    document.getElementById("admin-role-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const targetId = document.getElementById("admin-target-id").value.trim();
-      const newRole = document.getElementById("admin-role-select").value;
-
-      const msg = document.getElementById("admin-message");
-      msg.textContent = "Updating role...";
-      msg.className = "message";
-
-      const res = await fetchWithAuth(`/api/admin/users/${targetId}/role`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
-      });
+    const msg = document.getElementById("profile-message");
+    if (res && res.ok) {
+      msg.className = "message success";
+      msg.textContent = "Profile saved successfully.";
+      loadDashboardStats();
+    } else {
       const data = await res.json();
-      if (res && res.ok) {
-        msg.className = "message success";
-        msg.textContent = data.message || "Role updated!";
-      } else {
-        msg.textContent = data.error || "Could not update user role";
-      }
+      msg.textContent = data.error || "Could not save changes";
+    }
+  });
+
+  // Admin role update form
+  document.getElementById("admin-role-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const targetId = document.getElementById("admin-target-id").value.trim();
+    const newRole = document.getElementById("admin-role-select").value;
+
+    const msg = document.getElementById("admin-message");
+    msg.textContent = "Updating role...";
+    msg.className = "message";
+
+    const res = await fetchWithAuth(`/api/admin/users/${targetId}/role`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
     });
+    const data = await res.json();
+    if (res && res.ok) {
+      msg.className = "message success";
+      msg.textContent = data.message || "Role updated!";
+    } else {
+      msg.textContent = data.error || "Could not update user role";
+    }
+  });
 
-    async function loadAnalyticsSummary() {
-      const res = await fetchWithAuth("/api/v1/analytics/summary");
-      if (!res || !res.ok) return;
-      const data = await res.json();
+  async function loadAnalyticsSummary() {
+    const res = await fetchWithAuth("/api/v1/analytics/summary");
+    if (!res || !res.ok) return;
+    const data = await res.json();
 
-      const relList = document.getElementById("analytics-relations");
-      relList.innerHTML = "";
-      const rels = data.relations || {};
-      if (Object.keys(rels).length === 0) {
-        relList.innerHTML = `<li>No data</li>`;
-      } else {
-        for (const [key, val] of Object.entries(rels)) {
-          const li = document.createElement("li");
-          li.innerHTML = `<strong>${key}:</strong> ${val}`;
-          relList.appendChild(li);
-        }
-      }
-
-      const domList = document.getElementById("analytics-domains");
-      domList.innerHTML = "";
-      const domains = data.email_domains || {};
-      if (Object.keys(domains).length === 0) {
-        domList.innerHTML = `<li>No data</li>`;
-      } else {
-        for (const [key, val] of Object.entries(domains)) {
-          const li = document.createElement("li");
-          li.innerHTML = `<strong>${key}:</strong> ${val}`;
-          domList.appendChild(li);
-        }
+    const relList = document.getElementById("analytics-relations");
+    relList.innerHTML = "";
+    const rels = data.relations || {};
+    if (Object.keys(rels).length === 0) {
+      relList.innerHTML = `<li>No data</li>`;
+    } else {
+      for (const [key, val] of Object.entries(rels)) {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${key}:</strong> ${val}`;
+        relList.appendChild(li);
       }
     }
 
-    function fellowRow(fellow) {
-      const li = document.createElement("li");
-      li.style.flexDirection = "column";
-      li.style.alignItems = "stretch";
-      li.style.gap = "8px";
-
-      let attachHtml = "";
-      if (fellow.attachments && fellow.attachments.length > 0) {
-        const attachList = fellow.attachments.map(a =>
-          `<span style="display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; background: #0f172a; padding: 2px 8px; border-radius: 4px; border: 1px solid #1e293b;">` +
-          `<a href="${a.url}" target="_blank" style="color: #38bdf8; text-decoration: underline;">📎 ${a.filename}</a>` +
-          `<button type="button" class="delete-attach-btn" data-filename="${a.filename}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0 4px; font-weight: bold; font-size: 0.85rem;" title="Delete attachment">×</button>` +
-          `</span>`
-        ).join("");
-        attachHtml = `<div style="font-size: 0.78rem; margin-top: 6px; color: #94a3b8; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">Attachments: ${attachList}</div>`;
+    const domList = document.getElementById("analytics-domains");
+    domList.innerHTML = "";
+    const domains = data.email_domains || {};
+    if (Object.keys(domains).length === 0) {
+      domList.innerHTML = `<li>No data</li>`;
+    } else {
+      for (const [key, val] of Object.entries(domains)) {
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${key}:</strong> ${val}`;
+        domList.appendChild(li);
       }
+    }
+  }
 
-      const ownerTag = fellow.owner_name ? ` <span style="font-size: 0.72rem; color: #c084fc; border: 1px solid #7e22ce; border-radius: 4px; padding: 1px 5px; margin-left: 6px;">Owner: ${fellow.owner_name}</span>` : "";
+  function fellowRow(fellow) {
+    const li = document.createElement("li");
+    li.style.flexDirection = "column";
+    li.style.alignItems = "stretch";
+    li.style.gap = "8px";
 
-      li.innerHTML = `
+    let attachHtml = "";
+    if (fellow.attachments && fellow.attachments.length > 0) {
+      const attachList = fellow.attachments.map(a =>
+        `<span style="display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; background: #0f172a; padding: 2px 8px; border-radius: 4px; border: 1px solid #1e293b;">` +
+        `<a href="${a.url}" target="_blank" style="color: #38bdf8; text-decoration: underline;">📎 ${a.filename}</a>` +
+        `<button type="button" class="delete-attach-btn" data-filename="${a.filename}" style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 0 4px; font-weight: bold; font-size: 0.85rem;" title="Delete attachment">×</button>` +
+        `</span>`
+      ).join("");
+      attachHtml = `<div style="font-size: 0.78rem; margin-top: 6px; color: #94a3b8; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">Attachments: ${attachList}</div>`;
+    }
+
+    const ownerTag = fellow.owner_name ? ` <span style="font-size: 0.72rem; color: #c084fc; border: 1px solid #7e22ce; border-radius: 4px; padding: 1px 5px; margin-left: 6px;">Owner: ${fellow.owner_name}</span>` : "";
+
+    li.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span><strong>${fellow.name}</strong>${fellow.relation ? " — " + fellow.relation : ""}${fellow.email ? " (" + fellow.email + ")" : ""}${ownerTag}</span>
           <div style="display: flex; gap: 6px;">
@@ -493,190 +507,187 @@
         ${attachHtml}
       `;
 
-      // Delete attachment listener
-      li.querySelectorAll(".delete-attach-btn").forEach(btn => {
-        btn.addEventListener("click", async (e) => {
-          const filename = e.target.getAttribute("data-filename");
-          const res = await fetchWithAuth(`/api/v1/fellows/${fellow.id}/attachments/${encodeURIComponent(filename)}`, {
-            method: "DELETE"
-          });
-          if (res && res.ok) {
-            loadFellows();
-          }
-        });
-      });
-
-
-
-      // File attachment listener
-      const fileInput = li.querySelector(`#attach-file-${fellow.id}`);
-      fileInput.addEventListener("change", async (e) => {
-        if (!e.target.files[0]) return;
-        const formData = new FormData();
-        formData.append("file", e.target.files[0]);
-        formData.append("token", getToken());
-        const res = await fetchWithAuth(`/api/v1/fellows/${fellow.id}/attachments`, {
-          method: "POST",
-          body: formData,
+    // Delete attachment listener
+    li.querySelectorAll(".delete-attach-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const filename = e.target.getAttribute("data-filename");
+        const res = await fetchWithAuth(`/api/v1/fellows/${fellow.id}/attachments/${encodeURIComponent(filename)}`, {
+          method: "DELETE"
         });
         if (res && res.ok) {
           loadFellows();
         }
       });
-
-      li.querySelector(".delete-fellow").addEventListener("click", async () => {
-        await fetchWithAuth("/api/fellows/" + fellow.id, { method: "DELETE" });
-        loadFellows();
-        loadDashboardStats();
-        loadAnalyticsSummary();
-      });
-      return li;
-    }
-
-    // Export CSV & JSON handlers
-    document.getElementById("export-csv-btn").addEventListener("click", () => {
-      const token = localStorage.getItem("token");
-      window.open(`/api/v1/fellows/export?format=csv&token=${token}`, "_blank");
     });
 
-    document.getElementById("export-json-btn").addEventListener("click", () => {
-      const token = localStorage.getItem("token");
-      window.open(`/api/v1/fellows/export?format=json&token=${token}`, "_blank");
-    });
 
-    // Import File handler
-    document.getElementById("import-file-input").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+
+    // File attachment listener
+    const fileInput = li.querySelector(`#attach-file-${fellow.id}`);
+    fileInput.addEventListener("change", async (e) => {
+      if (!e.target.files[0]) return;
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", e.target.files[0]);
       formData.append("token", getToken());
-
-      const res = await fetchWithAuth("/api/v1/fellows/import", {
+      const res = await fetchWithAuth(`/api/v1/fellows/${fellow.id}/attachments`, {
         method: "POST",
         body: formData,
       });
-
       if (res && res.ok) {
-        alert("Contacts imported successfully!");
-        loadFellows();
-        loadDashboardStats();
-        loadAnalyticsSummary();
-      } else {
-        const data = await res.json();
-        alert(data.error || "Failed to import contacts");
-      }
-      e.target.value = "";
-    });
-
-
-    let adminViewAll = false;
-
-    document.getElementById("admin-view-my").addEventListener("click", () => {
-      adminViewAll = false;
-      document.getElementById("admin-view-my").style.borderColor = "#38bdf8";
-      document.getElementById("admin-view-all").style.borderColor = "";
-      currentPage = 1;
-      loadFellows();
-    });
-
-    document.getElementById("admin-view-all").addEventListener("click", () => {
-      adminViewAll = true;
-      document.getElementById("admin-view-all").style.borderColor = "#ef4444";
-      document.getElementById("admin-view-my").style.borderColor = "";
-      currentPage = 1;
-      loadFellows();
-    });
-
-    async function loadFellows() {
-      const q = document.getElementById("search-input").value.trim();
-      const sort = document.getElementById("sort-select").value;
-      const order = document.getElementById("order-select").value;
-
-      let url = `/api/fellows?q=${encodeURIComponent(q)}&sort=${sort}&order=${order}&page=${currentPage}&limit=${currentLimit}`;
-      if (adminViewAll) {
-        url += "&all=true";
-      }
-
-      const res = await fetchWithAuth(url);
-      if (!res || !res.ok) return;
-
-      const result = await res.json();
-      const items = result.items || [];
-      const list = document.getElementById("fellow-list");
-      list.innerHTML = "";
-
-      if (items.length === 0) {
-        list.innerHTML = `<li style="justify-content: center; color: #94a3b8;">No contacts found.</li>`;
-      } else {
-        items.forEach((f) => list.appendChild(fellowRow(f)));
-      }
-
-      // Update pagination info
-      document.getElementById("pagination-info").textContent = `Page ${result.page} of ${result.pages} (${result.total} total${result.is_admin_all ? " - ALL System Contacts" : ""})`;
-      document.getElementById("prev-page-btn").disabled = (result.page <= 1);
-      document.getElementById("next-page-btn").disabled = (result.page >= result.pages);
-    }
-
-
-    document.getElementById("search-input").addEventListener("input", () => {
-      currentPage = 1;
-      loadFellows();
-    });
-
-    document.getElementById("sort-select").addEventListener("change", () => {
-      loadFellows();
-    });
-
-    document.getElementById("order-select").addEventListener("change", () => {
-      loadFellows();
-    });
-
-    document.getElementById("prev-page-btn").addEventListener("click", () => {
-      if (currentPage > 1) {
-        currentPage--;
         loadFellows();
       }
     });
 
-    document.getElementById("next-page-btn").addEventListener("click", () => {
-      currentPage++;
+    li.querySelector(".delete-fellow").addEventListener("click", async () => {
+      await fetchWithAuth("/api/fellows/" + fellow.id, { method: "DELETE" });
       loadFellows();
-    });
-
-    document.getElementById("fellow-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const body = {
-        name: document.getElementById("fellow-name").value,
-        email: document.getElementById("fellow-email").value,
-        relation: document.getElementById("fellow-relation").value,
-      };
-      const res = await fetchWithAuth("/api/fellows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res && res.ok) {
-        e.target.reset();
-        document.getElementById("fellow-message").textContent = "";
-        loadFellows();
-        loadDashboardStats();
-        loadAnalyticsSummary();
-      } else {
-        const data = await res.json();
-        document.getElementById("fellow-message").textContent = data.error || "Could not add fellow";
-      }
-    });
-
-    if (getToken()) {
-      loadProfile();
       loadDashboardStats();
       loadAnalyticsSummary();
+    });
+    return li;
+  }
+
+  // Export CSV & JSON handlers
+  document.getElementById("export-csv-btn").addEventListener("click", () => {
+    const token = localStorage.getItem("token");
+    window.open(`/api/v1/fellows/export?format=csv&token=${token}`, "_blank");
+  });
+
+  document.getElementById("export-json-btn").addEventListener("click", () => {
+    const token = localStorage.getItem("token");
+    window.open(`/api/v1/fellows/export?format=json&token=${token}`, "_blank");
+  });
+
+  // Import File handler
+  document.getElementById("import-file-input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("token", getToken());
+
+    const res = await fetchWithAuth("/api/v1/fellows/import", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (res && res.ok) {
+      alert("Contacts imported successfully!");
       loadFellows();
+      loadDashboardStats();
+      loadAnalyticsSummary();
+    } else {
+      const data = await res.json();
+      alert(data.error || "Failed to import contacts");
+    }
+    e.target.value = "";
+  });
+
+
+  let adminViewAll = false;
+
+  document.getElementById("admin-view-my").addEventListener("click", () => {
+    adminViewAll = false;
+    document.getElementById("admin-view-my").style.borderColor = "#38bdf8";
+    document.getElementById("admin-view-all").style.borderColor = "";
+    currentPage = 1;
+    loadFellows();
+  });
+
+  document.getElementById("admin-view-all").addEventListener("click", () => {
+    adminViewAll = true;
+    document.getElementById("admin-view-all").style.borderColor = "#ef4444";
+    document.getElementById("admin-view-my").style.borderColor = "";
+    currentPage = 1;
+    loadFellows();
+  });
+
+  async function loadFellows() {
+    const q = document.getElementById("search-input").value.trim();
+    const sort = document.getElementById("sort-select").value;
+    const order = document.getElementById("order-select").value;
+
+    let url = `/api/fellows?q=${encodeURIComponent(q)}&sort=${sort}&order=${order}&page=${currentPage}&limit=${currentLimit}`;
+    if (adminViewAll) {
+      url += "&all=true";
     }
 
-  </script>
+    const res = await fetchWithAuth(url);
+    if (!res || !res.ok) return;
+
+    const result = await res.json();
+    const items = result.items || [];
+    const list = document.getElementById("fellow-list");
+    list.innerHTML = "";
+
+    if (items.length === 0) {
+      list.innerHTML = `<li style="justify-content: center; color: #94a3b8;">No contacts found.</li>`;
+    } else {
+      items.forEach((f) => list.appendChild(fellowRow(f)));
+    }
+
+    // Update pagination info
+    document.getElementById("pagination-info").textContent = `Page ${result.page} of ${result.pages} (${result.total} total${result.is_admin_all ? " - ALL System Contacts" : ""})`;
+    document.getElementById("prev-page-btn").disabled = (result.page <= 1);
+    document.getElementById("next-page-btn").disabled = (result.page >= result.pages);
+  }
+
+
+  document.getElementById("search-input").addEventListener("input", () => {
+    currentPage = 1;
+    loadFellows();
+  });
+
+  document.getElementById("sort-select").addEventListener("change", () => {
+    loadFellows();
+  });
+
+  document.getElementById("order-select").addEventListener("change", () => {
+    loadFellows();
+  });
+
+  document.getElementById("prev-page-btn").addEventListener("click", () => {
+    if (currentPage > 1) {
+      currentPage--;
+      loadFellows();
+    }
+  });
+
+  document.getElementById("next-page-btn").addEventListener("click", () => {
+    currentPage++;
+    loadFellows();
+  });
+
+  document.getElementById("fellow-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = {
+      name: document.getElementById("fellow-name").value,
+      email: document.getElementById("fellow-email").value,
+      relation: document.getElementById("fellow-relation").value,
+    };
+    const res = await fetchWithAuth("/api/fellows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res && res.ok) {
+      e.target.reset();
+      document.getElementById("fellow-message").textContent = "";
+      loadFellows();
+      loadDashboardStats();
+      loadAnalyticsSummary();
+    } else {
+      const data = await res.json();
+      document.getElementById("fellow-message").textContent = data.error || "Could not add fellow";
+    }
+  });
+
+  if (getToken()) {
+    loadProfile();
+    loadDashboardStats();
+    loadAnalyticsSummary();
+    loadFellows();
+  }
+
+</script>
 {% endblock %}
-
-
-

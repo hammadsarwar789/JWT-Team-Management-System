@@ -50,7 +50,16 @@ def create_app(config_class=Config, test_config=None):
     def profile_page():
         return render_template("profile.html")
 
+    @app.route("/verify-email")
+    def verify_email_page():
+        return render_template("verify_email.html")
+
+    @app.route("/reset-password")
+    def reset_password_page():
+        return render_template("reset_password.html")
+
     @app.route("/uploads/<path:filename>")
+
     def serve_uploads(filename):
         upload_dir = os.path.join(app.root_path, "uploads")
         return send_from_directory(upload_dir, filename)

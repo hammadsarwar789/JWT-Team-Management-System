@@ -121,11 +121,11 @@
       const data = await res.json();
       if (res.ok) {
         msg.className = "message success";
-        msg.textContent = data.message;
-        if (data.reset_token) {
-          document.getElementById("reset-token").value = data.reset_token;
-        }
-        document.getElementById("reset-confirm-form").classList.remove("hidden");
+        msg.innerHTML = `Password reset link dispatched! 📧<br><br>
+          Please check your <strong>Gmail inbox</strong> and click the <strong>Reset Password</strong> link.<br><br>
+          <a href="/signin" style="color: #60a5fa; font-weight: 500;">Back to Sign In</a>`;
+
+        document.getElementById("forgot-form").classList.add("hidden");
       } else {
         msg.textContent = data.error || "Failed to process request";
       }

@@ -60,6 +60,9 @@ def test_role_required_decorator(app, client):
         user.role = UserRole.ADMIN
         db.session.commit()
 
+    db.session.expire_all()
+    db.session.remove()
+
     res_allowed = client.get("/test-admin-only", headers={"Authorization": f"Bearer {token}"})
     assert res_allowed.status_code == 200
     assert res_allowed.get_json()["message"] == "admin access granted"

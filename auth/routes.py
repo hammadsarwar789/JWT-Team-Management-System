@@ -53,6 +53,8 @@ def signup():
     refresh_token = None
     if isinstance(tokens, dict):
         response_data.update(tokens)
+        if "access_token" in tokens and "token" not in response_data:
+            response_data["token"] = tokens["access_token"]
         refresh_token = tokens.get("refresh_token")
     else:
         response_data["token"] = tokens
@@ -83,6 +85,8 @@ def signin():
     refresh_token = None
     if isinstance(tokens, dict):
         response_data.update(tokens)
+        if "access_token" in tokens and "token" not in response_data:
+            response_data["token"] = tokens["access_token"]
         refresh_token = tokens.get("refresh_token")
     else:
         response_data["token"] = tokens

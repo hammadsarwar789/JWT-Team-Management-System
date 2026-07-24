@@ -44,33 +44,45 @@
 
         if (res.ok) {
           msg.className = "message success";
-          msg.innerHTML = `Account created! Verification email dispatched via Celery.<br><br>
-            <label style="font-size:0.85rem;">Verification Token:</label>
-            <input type="text" id="signup-vtoken" value="${data.verification_token || ''}" placeholder="Verification Token" style="margin: 4px 0 8px;">
-            <button type="button" id="signup-verify-btn" style="padding: 6px 12px; font-size:0.85rem;">Verify Email & Sign In</button>`;
+          msg.innerHTML = `Account created successfully! 🎉<br><br>
+            A verification link has been sent to your Gmail address.<br>
+            Please open your Gmail inbox and click the <strong>Verify Email</strong> link to activate your account.<br><br>
+            <a href="/signin" style="color: #60a5fa; font-weight: 500;">Proceed to Sign In</a>`;
 
-          document.getElementById("signup-verify-btn").addEventListener("click", async () => {
-            const vToken = document.getElementById("signup-vtoken").value.trim();
-            if (!vToken) return;
-            const vRes = await fetch("/api/auth/verify-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ verification_token: vToken }),
-            });
-            const vData = await vRes.json();
-            if (vRes.ok) {
-              localStorage.setItem("token", data.access_token || data.token);
-              if (data.refresh_token) {
-                localStorage.setItem("refresh_token", data.refresh_token);
+          if (data.verification_token) {
+            msg.innerHTML += `<br><br><details style="font-size:0.8rem; color:#94a3b8;"><summary>Development Fallback Token</summary>
+              <input type="text" id="signup-vtoken" value="${data.verification_token}" style="margin: 4px 0 8px;">
+              <button type="button" id="signup-verify-btn" style="padding: 4px 8px; font-size:0.8rem;">Verify Now</button></details>`;
+
+            setTimeout(() => {
+              const vBtn = document.getElementById("signup-verify-btn");
+              if (vBtn) {
+                vBtn.addEventListener("click", async () => {
+                  const vToken = document.getElementById("signup-vtoken").value.trim();
+                  if (!vToken) return;
+                  const vRes = await fetch("/api/auth/verify-email", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ verification_token: vToken }),
+                  });
+                  const vData = await vRes.json();
+                  if (vRes.ok) {
+                    localStorage.setItem("token", data.access_token || data.token);
+                    if (data.refresh_token) {
+                      localStorage.setItem("refresh_token", data.refresh_token);
+                    }
+                    window.location.href = "/profile";
+                  } else {
+                    alert(vData.error || "Verification failed");
+                  }
+                });
               }
-              window.location.href = "/profile";
-            } else {
-              alert(vData.error || "Verification failed");
-            }
-          });
+            }, 100);
+          }
         } else {
           msg.textContent = data.error || "Something went wrong";
         }
+
       } catch (err) {
         msg.textContent = "Connection error. Please ensure server is running.";
       } finally {
