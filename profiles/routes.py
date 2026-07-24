@@ -12,8 +12,6 @@ from models.user import UserRole
 profile_bp = Blueprint("profile", __name__)
 
 
-
-
 # ---------- Profile ----------
 
 @profile_bp.route("/profile", methods=["GET"])
