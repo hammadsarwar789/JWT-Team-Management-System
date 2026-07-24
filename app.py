@@ -9,7 +9,6 @@ from middleware.security import setup_security_headers
 from auth.routes import auth_bp
 from profiles.routes import profile_bp
 
-
 def create_app(config_class=Config, test_config=None):
     app = Flask(__name__)
     app.config.from_object(config_class)
