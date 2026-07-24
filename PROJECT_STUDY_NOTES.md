@@ -728,46 +728,91 @@ celery_app = create_celery_app()
 
 ---
 
-### 7.2 `tasks/email_tasks.py` — Async Celery Email Tasks
+### 7.2 `tasks/email_tasks.py` — Async Celery Email Tasks with Gmail SMTP
 
-Defines background email tasks dispatched asynchronously via `.delay()`.
+Defines background email tasks dispatched asynchronously via `.delay()`. Connects to Gmail SMTP (`smtp.gmail.com:587`) using TLS when credentials are set in `.env`.
 
 ```python
 import logging
+import smtplib
+from email.message import EmailMessage
 from tasks.celery_app import celery_app
+from config import Config
 
 logger = logging.getLogger(__name__)
 
-@celery_app.task(name="tasks.email_tasks.send_password_reset_email")
-def send_password_reset_email(user_email: str, reset_token: str):
-    """Background task simulating sending password reset email."""
-    logger.info(f"--> [EMAIL TASK] Sending password reset token to {user_email}: {reset_token}")
-    print(f"--> [EMAIL TASK] Password Reset Token for {user_email}: {reset_token}")
-    return True
+
+def _send_smtp_email(to_email: str, subject: str, body_text: str, body_html: str = None) -> bool:
+    """Helper function to send email via SMTP if credentials are configured."""
+    username = (Config.MAIL_USERNAME or "").strip()
+    password = (Config.MAIL_PASSWORD or "").replace(" ", "").strip()
+
+    if not username or not password:
+        logger.info("[SMTP] MAIL_USERNAME or MAIL_PASSWORD not configured. Skipping SMTP send.")
+        return False
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = username
+    msg["To"] = to_email
+    msg.set_content(body_text)
+
+    if body_html:
+        msg.add_alternative(body_html, subtype="html")
+
+    try:
+        with smtplib.SMTP(Config.MAIL_SERVER, Config.MAIL_PORT, timeout=10) as server:
+            if Config.MAIL_USE_TLS:
+                server.starttls()
+            server.login(username, password)
+            server.send_message(msg)
+        logger.info(f"[SMTP] Successfully sent email to {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"[SMTP ERROR] Failed to send email to {to_email}: {str(e)}")
+        return False
 
 
-@celery_app.task(name="tasks.email_tasks.send_verification_email")
-def send_verification_email(user_email: str, verification_token: str):
-    """Background task simulating sending email verification link."""
-    logger.info(f"--> [EMAIL TASK] Sending verification token to {user_email}: {verification_token}")
-    print(f"--> [EMAIL TASK] Verification token for {user_email}: {verification_token}")
-    return True
+@celery_app.task(name="send_password_reset_email")
+def send_password_reset_email(email: str, reset_token: str):
+    """Asynchronous Celery task to send password reset email link."""
+    reset_link = f"{Config.APP_BASE_URL}/reset-password?token={reset_token}"
+    # Constructs HTML template with action button to /reset-password
+    sent = _send_smtp_email(email, "Reset Your Password", f"Reset link: {reset_link}", html_content)
+    return {"status": "sent", "smtp_sent": sent, "email": email}
+
+
+@celery_app.task(name="send_verification_email")
+def send_verification_email(email: str, verification_token: str):
+    """Asynchronous Celery task to send account verification email link."""
+    verification_link = f"{Config.APP_BASE_URL}/verify-email?token={verification_token}"
+    # Constructs HTML template with action button to /verify-email
+    sent = _send_smtp_email(email, "Verify Your Gmail Address", f"Verify link: {verification_link}", html_content)
+    return {"status": "sent", "smtp_sent": sent, "email": email}
 ```
 
 ---
 
-## 8. API Blueprints & Route Handlers
+## 8. API Blueprints, Web Pages & Route Handlers
+
+### Web Pages
+- `GET /` or `/signin` — Sign In & Forgot Password Form
+- `GET /signup` — User Registration Page
+- `GET /verify-email?token=<TOKEN>` — Gmail Email Verification Landing Page (`verify_email.html`)
+- `GET /reset-password?token=<TOKEN>` — Gmail Password Reset Landing Page (`reset_password.html`)
+- `GET /profile` — Authenticated Profile Dashboard
 
 ### Summary of REST Endpoints
 
 | Endpoint | Method | Security | Description |
 |---|---|:---:|---|
-| `/api/v1/auth/signup` | POST | Public | Register new user account (dispatches async email task) |
-| `/api/v1/auth/signin` | POST | Public | Authenticate user & receive JWT tokens / HTTP-Only cookies |
-| `/api/v1/auth/refresh` | POST | Public | Refresh access token |
-| `/api/v1/auth/logout` | POST | `@token_required` | Revoke token `jti` in Redis and clear refresh cookie |
-| `/api/v1/auth/request-verification-email` | POST | `@token_required` | Dispatch verification token email via Celery task |
+| `/api/v1/auth/signup` | POST | Public | Register new user account (dispatches async Gmail verification email) |
+| `/api/v1/auth/signin` | POST | Public | Authenticate user & receive JWT tokens / HTTP-Only cookies (Requires verified email) |
 | `/api/v1/auth/verify-email` | POST | Public | Verify user email address with verification token |
+| `/api/v1/auth/refresh` | POST | Public | Refresh access token using cookie or token string |
+| `/api/v1/auth/logout` | POST | `@token_required` | Revoke token `jti` in Redis and clear refresh cookie |
+| `/api/v1/auth/forgot-password` | POST | Public | Request password reset link (dispatches async Celery task to Gmail) |
+| `/api/v1/auth/reset-password` | POST | Public | Confirm password reset with reset token & new password |
 | `/api/v1/profile` | GET | `@token_required` | Retrieve authenticated user profile |
 | `/api/v1/profile` | PUT | `@token_required` | Update profile information |
 | `/api/v1/profile/picture` | POST | `@token_required` | Upload profile avatar (saves unique UUID filename) |
@@ -786,7 +831,7 @@ The application includes 35 passing unit and integration tests executed using `p
 
 ```powershell
 # Run full automated test suite
-.\.venv\Scripts\python.exe -m pytest
+$env:PYTHONPATH="."; .\.venv\Scripts\python.exe -m pytest
 ```
 
 ### Test Coverage Highlights:
@@ -796,3 +841,4 @@ The application includes 35 passing unit and integration tests executed using `p
 - **`test_celery_tasks.py`:** Celery background task execution for email dispatches.
 - **`test_caching.py`:** Redis endpoint response caching (`X-Cache: HIT`/`MISS`) and mutation cache invalidation.
 - **`test_profile.py`:** Profile CRUD operations, unique avatar uploads, contact search, pagination, and RBAC permissions.
+
